@@ -8,7 +8,7 @@ from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHan
 app = Flask(__name__)
 
 # LangChain 초기화
-local_path = './nous-hermes-llama2-13b.Q4_0.gguf'
+local_path = '../../models/nous-hermes-llama2-13b.Q4_0.gguf'
 prompt = PromptTemplate(
     input_variables=["text"],
     template="Name any five companies which makes `{text}`?",
