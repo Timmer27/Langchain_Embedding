@@ -162,3 +162,5 @@ cython_debug/
 #.idea/
 /frontend/node_modules
 backend/config.ini
+llama-0.1.1-py2-none-any.whl
+/llama
