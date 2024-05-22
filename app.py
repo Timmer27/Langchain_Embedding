@@ -1,17 +1,16 @@
-# app.py
-# 실행법
-# streamlit run app.py
+# app.py  파일
+# 실행법 -> streamlit run app.py
 import streamlit as st
 import requests
 
 # LangChain 서버 URL
 llm_server_url = "http://localhost:5000/generate"
 
-st.title("Ollama 모델 기반 LLM 웹 UI")
+st.title("GPT4All 모델 기반 LLM 웹 UI")
 
 # 사용자 입력
 user_input = st.text_area("질문을 입력하세요:")
-
+# print("user_input", user_input)
 if st.button("전송"):
     if user_input:
         response = requests.post(llm_server_url, json={"text": user_input})

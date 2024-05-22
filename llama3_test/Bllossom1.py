@@ -1,8 +1,10 @@
-# Python code with Pipeline
+# Bllossom1.py 파일
+# Python code with Pipeline 
 import transformers
 import torch
 
-model_id = "MLP-KTLim/llama3-Bllossom"
+# model_id = "MLP-KTLim/llama3-Bllossom"
+model_id = "Bllossom/llama-3-Korean-Bllossom-70B"
 
 pipeline = transformers.pipeline(
     "text-generation",
@@ -46,3 +48,4 @@ outputs = pipeline(
 print(outputs[0]["generated_text"][len(prompt):])
 
 # 서울과학기술대학교 MLP연구실은 멀티모달 자연어처리 연구를 하고 있습니다. 구성원은 임경태 교수와 김민준, 김상민, 최창수, 원인호, 유한결, 임현석, 송승우, 육정훈, 신동재 학생이 있습니다.
+# 이것도 결국 다운 받는 버전임. 파일을 삭제하니 500 Internal Server Error 에러남. 파일사이즈도 늘어나고..

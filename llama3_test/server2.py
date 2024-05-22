@@ -1,26 +1,25 @@
-# server.py -> llama2, langchain with GPT4All LLM Provider 
+# server.py -> llama2, langchain with Ollama LLM Provider 
+
+
 from flask import Flask, request, jsonify
 from langchain.prompts import PromptTemplate
-from langchain_community.llms import GPT4All
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.llms import Ollama
 
 # Flask 애플리케이션 초기화
 app = Flask(__name__)
 
 # LangChain 초기화
 local_path = '../models/nous-hermes-llama2-13b.Q4_0.gguf'
+# local_path = './nous-hermes-llama2-13b.Q4_0.gguf'
 prompt = PromptTemplate(
     input_variables=["text"],
     template="Name any five companies which makes `{text}`?",
 )
 
-llm = GPT4All(
-    model=local_path,
-    callbacks=[StreamingStdOutCallbackHandler()],
-    streaming=True,
-    verbose=True,
-)
+# Initialize Ollama
+# llm = Llama(local_path, device="cpu")
+llm = Ollama(model=local_path)
 
 chain = prompt | llm | StrOutputParser()
 
