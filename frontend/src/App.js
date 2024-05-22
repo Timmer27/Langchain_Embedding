@@ -70,7 +70,7 @@ const MyComponent = () => {
                 {/* <Badge variant="secondary">Llava:latest (4.4GB)</Badge> */}
                 {/* <ChevronDownIcon className="text-gray-400" /> */}
               </div>
-              <div className="text-white">안녕 챗봇</div>
+              {/* <div className="text-white">안녕 챗봇</div> */}
               <div className="text-white">{output}</div>
 
               {/* <div
