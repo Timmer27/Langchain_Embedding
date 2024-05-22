@@ -96,6 +96,10 @@ def chain(prompt):
     threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
     return g
 
+@app.route('/test', methods=['GET'])
+def test():
+    return "HI!"
+
 @app.route('/chain', methods=['POST'])
 def _chain():
     return Response(chain(request.json['prompt']), mimetype='text/plain')
@@ -103,4 +107,4 @@ def _chain():
 if __name__ == '__main__':
     api_key = load_api_key()
     set_api_key_env_var(api_key)
-    app.run(threaded=True, debug=True, port=5001)
+    app.run(host='0.0.0.0', port=5001, threaded=True)
