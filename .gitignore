@@ -164,3 +164,4 @@ cython_debug/
 backend/config.ini
 llama-0.1.1-py2-none-any.whl
 /llama
+/backend/vector_store
