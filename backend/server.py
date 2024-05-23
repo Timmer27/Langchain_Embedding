@@ -10,18 +10,23 @@ from langchain_community.llms import GPT4All
 from langchain.llms import Ollama
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.prompts import PromptTemplate
-from langchain_chroma import Chroma
-from dotenv import load_dotenv
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel
-from langchain.document_loaders import WebBaseLoader, TextLoader
+from langchain.document_loaders import WebBaseLoader, TextLoader, PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings.sentence_transformer import (
     SentenceTransformerEmbeddings,
 )
+from src.utils import load_persisted_chroma_db
+from dotenv import load_dotenv
+import warnings
+warnings.filterwarnings("ignore")
+
+
+# from langchain.chains import RunnableSequence, RunnableLambda, RunnablePassthrough
+from langchain_core.runnables import RunnableLambda, RunnableSequence, RunnablePassthrough
 
 app = Flask(__name__)
 CORS(app)
@@ -159,28 +164,31 @@ def llm_Ollama(g, prompt):
     finally:
         g.close()        
 
+def llm_openAI_with_chroma(g, prompt):
+    # Chroma DB를 로드합니다.
+    db = load_persisted_chroma_db()
+    # 로드된 DB를 이용하여 Retriever를 초기화합니다.
+    retriever = db.as_retriever(search_type="similarity")
+    # Retriever를 호출 시, custom callback을 포함합니다.
+    docs = retriever.invoke(prompt, {"callbacks": ChainStreamHandler(g)})
+    print('docs', docs)
+    g.close()
+    return docs
+
 def chain(prompt):
     g = ThreadedGenerator()
-    threading.Thread(target=llm_OpenAI, args=(g, prompt)).start()
-    # threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
+    # threading.Thread(target=llm_OpenAI, args=(g, prompt)).start()
+    threading.Thread(target=llm_openAI_with_chroma, args=(g, prompt)).start()
     # threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
     return g
 
-@app.route('/test', methods=['GET'])
-def test():
-    return "HI!@!"
-
-@app.route('/dbtest', methods=['GET'])
-def dbtest():
-    loader = WebBaseLoader([
-        "https://python.langchain.com/docs/get_started/introduction",   # LangChain Introduction
-        "https://python.langchain.com/docs/modules/data_connection/" # LangChain Retrieval
-        ]
-    )
-    loader = TextLoader("./data/state_of_the_union.txt", encoding='utf-8')
-    # 웹문서 로드
-    data = loader.load()    
-    
+def load_chunk_persist_pdf(dataPath) -> Chroma:
+    data = []
+    for file in os.listdir(dataPath):
+        if file.endswith('.pdf'):
+            pdf_path = os.path.join(dataPath, file)
+            loader = PyPDFLoader(pdf_path)
+            data.extend(loader.load())
     # 데이터 분할
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size = 500, 
@@ -188,13 +196,19 @@ def dbtest():
     )
     documents = text_splitter.split_documents(data)
 
-    db = Chroma.from_documents(documents, OpenAIEmbeddings())
-    query = "What did the president say about Ketanji Brown Jackson"
-    docs = db.similarity_search(query)
-    print(docs[0].page_content)
-    # print(' docs -->' ,docs)
+    db = Chroma.from_documents(persist_directory="vector_store", documents=documents, embedding=OpenAIEmbeddings())
+    return db
 
-    return "hi"
+@app.route('/dbtest', methods=['GET'])
+def dbtest():
+    # db = load_chunk_persist_pdf('./data')
+    db = load_persisted_chroma_db()
+    retriever = db.as_retriever()
+    docs = retriever.invoke("경제전망 어케 되냐")
+    if docs:
+        return docs[0].page_content
+    else:
+        return "No relevant documents found."
 
 @app.route('/chain', methods=['POST'])
 def _chain():
