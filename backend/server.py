@@ -6,6 +6,8 @@ import queue
 from flask_cors import CORS
 from langchain.chat_models import ChatOpenAI
 from langchain_community.llms import GPT4All
+from langchain_community.llms import Ollama
+# from langchain.llms import Ollama
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.schema import HumanMessage
 from langchain.prompts import PromptTemplate
@@ -62,7 +64,7 @@ def llm_thread(g, prompt):
 
 def llm_gpt4(g, prompt):
     try:
-        local_path = './nous-hermes-llama2-13b.Q4_0.gguf'
+        local_path = '../../models/nous-hermes-llama2-13b.Q4_0.gguf'
         model = GPT4All(
             model=local_path,
             callbacks=[ChainStreamHandler(g)],
@@ -74,10 +76,24 @@ def llm_gpt4(g, prompt):
     finally:
         g.close()
 
+def llm_Ollama(g, prompt):
+    try:
+        local_path = os.path.abspath('../../models/nous-hermes-llama2-13b.Q4_0.gguf')  # Use absolute path
+        model = Ollama(
+            model=local_path,
+            callbacks=[ChainStreamHandler(g)],
+            verbose=True,
+        )
+        llm_chain = PromptTemplate(input_variables=["text"], template=prompt) | model
+        llm_chain.invoke({"text": ""})
+    finally:
+        g.close()        
+
 def chain(prompt):
     g = ThreadedGenerator()
-    threading.Thread(target=llm_thread, args=(g, prompt)).start()
+    # threading.Thread(target=llm_thread, args=(g, prompt)).start()
     # threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
+    threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
     return g
 
 @app.route('/test', methods=['GET'])
