@@ -92,13 +92,13 @@ def llm_Ollama(g, prompt):
 def chain(prompt):
     g = ThreadedGenerator()
     # threading.Thread(target=llm_thread, args=(g, prompt)).start()
-    # threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
-    threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
+    threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
+    # threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
     return g
 
 @app.route('/test', methods=['GET'])
 def test():
-    return "HI!"
+    return "HI!@!"
 
 @app.route('/chain', methods=['POST'])
 def _chain():
