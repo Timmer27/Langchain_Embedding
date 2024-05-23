@@ -50,7 +50,7 @@ class ChainStreamHandler(StreamingStdOutCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs):
         self.gen.send(token)
 
-def llm_thread(g, prompt):
+def llm_OpenAI(g, prompt):
     try:
         chat = ChatOpenAI(
             verbose=True,
@@ -64,7 +64,7 @@ def llm_thread(g, prompt):
 
 def llm_gpt4(g, prompt):
     try:
-        local_path = '../../models/nous-hermes-llama2-13b.Q4_0.gguf'
+        local_path = './models/nous-hermes-llama2-13b.Q4_0.gguf'
         model = GPT4All(
             model=local_path,
             callbacks=[ChainStreamHandler(g)],
@@ -78,7 +78,7 @@ def llm_gpt4(g, prompt):
 
 def llm_Ollama(g, prompt):
     try:
-        local_path = os.path.abspath('../../models/nous-hermes-llama2-13b.Q4_0.gguf')  # Use absolute path
+        local_path = os.path.abspath('./models/nous-hermes-llama2-13b.Q4_0.gguf')  # Use absolute path
         model = Ollama(
             model=local_path,
             callbacks=[ChainStreamHandler(g)],
@@ -91,8 +91,8 @@ def llm_Ollama(g, prompt):
 
 def chain(prompt):
     g = ThreadedGenerator()
-    # threading.Thread(target=llm_thread, args=(g, prompt)).start()
-    threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
+    threading.Thread(target=llm_OpenAI, args=(g, prompt)).start()
+    # threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
     # threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
     return g
 
