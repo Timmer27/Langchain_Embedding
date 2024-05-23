@@ -1,9 +1,14 @@
 # Bllossom1.py 파일
 # Python code with Pipeline 
+import os
 import transformers
 import torch
 import time
 from datetime import datetime
+
+# 모델 다운로드 위치 설정
+cache_dir = "/nas2/models"
+os.environ["TRANSFORMERS_CACHE"] = cache_dir
 
 start_time = time.time()
 print("시작시간", datetime.now())
@@ -13,7 +18,7 @@ model_id = "Bllossom/llama-3-Korean-Bllossom-70B"
 pipeline = transformers.pipeline(
     "text-generation",
     model=model_id,
-    model_kwargs={"torch_dtype": torch.bfloat16},
+    model_kwargs={"torch_dtype": torch.bfloat16, "cache_dir": cache_dir},
     device_map="auto",
 )
 
