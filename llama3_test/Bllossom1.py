@@ -2,10 +2,14 @@
 # Python code with Pipeline 
 import transformers
 import torch
+import time
+from datetime import datetime
+
+start_time = time.time()
+print("시작시간", datetime.now())
 
 # model_id = "MLP-KTLim/llama3-Bllossom"
 model_id = "Bllossom/llama-3-Korean-Bllossom-70B"
-
 pipeline = transformers.pipeline(
     "text-generation",
     model=model_id,
@@ -49,3 +53,14 @@ print(outputs[0]["generated_text"][len(prompt):])
 
 # 서울과학기술대학교 MLP연구실은 멀티모달 자연어처리 연구를 하고 있습니다. 구성원은 임경태 교수와 김민준, 김상민, 최창수, 원인호, 유한결, 임현석, 송승우, 육정훈, 신동재 학생이 있습니다.
 # 이것도 결국 다운 받는 버전임. 파일을 삭제하니 500 Internal Server Error 에러남. 파일사이즈도 늘어나고..
+
+end_time = time.time()
+
+execution_time = end_time - start_time
+
+hours, remainder = divmod(execution_time, 3600)
+minutes, seconds = divmod(remainder, 60)
+
+# 결과 출력
+print("종료시간", datetime.now())
+print(f"수행 시간: {int(hours)}시간 {int(minutes)}분 {seconds:.6f}초")
