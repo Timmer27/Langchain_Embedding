@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 const MyComponent = () => {
-  const URL = "http://127.0.0.1:5001";
+  const URL = process.env.REACT_APP_URL;
   const [prompt, setPrompt] = useState(
     "write a short koan story about seeing beyond"
   );

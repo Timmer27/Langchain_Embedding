@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 services:
   flask:
@@ -14,5 +14,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - REACT_APP_ENV=${REACT_APP_ENV}
     ports:
       - "3000:3000"
+    environment:
+      - REACT_APP_ENV=${REACT_APP_ENV}
