@@ -9,22 +9,24 @@ from langchain_community.llms import GPT4All
 # from langchain_community.llms import Ollama
 from langchain.llms import Ollama
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.schema import HumanMessage
 from langchain.prompts import PromptTemplate
-from src.utils import format_docs
-from src.prompt import prompt
 from langchain_chroma import Chroma
 from dotenv import load_dotenv
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain_openai import OpenAI, OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel
-
-load_dotenv()
+from langchain.document_loaders import WebBaseLoader, TextLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.embeddings.sentence_transformer import (
+    SentenceTransformerEmbeddings,
+)
 
 app = Flask(__name__)
 CORS(app)
 
+load_dotenv()
 def load_api_key():
     config = configparser.ConfigParser()
     config.read('config.ini')
@@ -168,6 +170,32 @@ def chain(prompt):
 def test():
     return "HI!@!"
 
+@app.route('/dbtest', methods=['GET'])
+def dbtest():
+    loader = WebBaseLoader([
+        "https://python.langchain.com/docs/get_started/introduction",   # LangChain Introduction
+        "https://python.langchain.com/docs/modules/data_connection/" # LangChain Retrieval
+        ]
+    )
+    loader = TextLoader("./data/state_of_the_union.txt", encoding='utf-8')
+    # 웹문서 로드
+    data = loader.load()    
+    
+    # 데이터 분할
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 500, 
+        chunk_overlap = 0
+    )
+    documents = text_splitter.split_documents(data)
+
+    db = Chroma.from_documents(documents, OpenAIEmbeddings())
+    query = "What did the president say about Ketanji Brown Jackson"
+    docs = db.similarity_search(query)
+    print(docs[0].page_content)
+    # print(' docs -->' ,docs)
+
+    return "hi"
+
 @app.route('/chain', methods=['POST'])
 def _chain():
     return Response(chain(request.json['prompt']), mimetype='text/plain')     # OK
@@ -178,4 +206,4 @@ def _chain():
 if __name__ == '__main__':
     api_key = load_api_key()
     set_api_key_env_var(api_key)
-    app.run(host='0.0.0.0', port=5001, threaded=True)
+    app.run(host='0.0.0.0', port=5001, threaded=True, debug=True)
