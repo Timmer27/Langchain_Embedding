@@ -31,6 +31,29 @@ const MyComponent = () => {
         const decoded = decoder.decode(value, { stream: true });
         setOutput((prev) => prev + decoded);
       }
+      // const response = await fetch(`${URL}/chain`, {
+      //   signal: aborterRef.current.signal,
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ prompt }),
+      // });
+      // const reader = response.body.getReader();
+      // const decoder = new TextDecoder();
+      // while (true) {
+      //   const { done, value } = await reader.read();
+      //   if (done) break;
+      //   const decoded = decoder.decode(value, { stream: true });
+      //   setOutput((prev) => prev + decoded);
+      // }
+      // const response = await axios.post(`${URL}/chain`, {
+      //   prompt,
+      // });
+      // const generatedText = response.data.answer;
+      // setOutput(generatedText);
+      // const response = await axios.post('/chain', { question: prompt });
+      // setOutput([...output, { user: true, message: prompt }]);
+      // setOutput([...output, { user: false, message: response.data.answer }]);
+      // setPrompt('');
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error(err);
