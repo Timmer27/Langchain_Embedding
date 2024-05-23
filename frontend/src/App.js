@@ -31,6 +31,11 @@ const MyComponent = () => {
         const decoded = decoder.decode(value, { stream: true });
         setOutput((prev) => prev + decoded);
       }
+      // const response = await axios.post(`${URL}/chat`, {
+      //   prompt,
+      // });
+      // const generatedText = response.data.answer;
+      // setOutput(generatedText);
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error(err);
