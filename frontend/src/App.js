@@ -1,41 +1,125 @@
 import React, { useState, useEffect, useRef } from "react";
+import {
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuItems,
+  Transition,
+} from "@headlessui/react";
+import { BoltIcon, ChevronDownIcon, bolt } from "@heroicons/react/20/solid";
 import axios from "axios";
+import chatBot from "./assets/chatbot.png";
+import "./App.css";
+
+const MODELS = [
+  {
+    key: "1",
+    label: "Open AI",
+  },
+  {
+    key: "2",
+    label: "GPT4 ALL",
+  },
+  {
+    key: "3",
+    label: "Ollama",
+  },
+];
+
+const chats = [
+  {
+    type: "user",
+    text: ["안녕"],
+  },
+  {
+    type: "bot",
+    text: ["안녕하세요. 점심 뭐 드셨어요"],
+  },
+  {
+    type: "user",
+    text: ["아무말 해봐"],
+  },
+  {
+    type: "bot",
+    text: [
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum",
+      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum",
+      "Forget about having to attribute an illustration with a Premium Subscription. Use any illustration either for commercial or personal use without crediting the author.",
+    ],
+  },
+];
+
+function classNames(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
 
 const MyComponent = () => {
   const URL = process.env.REACT_APP_URL;
-  const [prompt, setPrompt] = useState(
-    "write a short koan story about seeing beyond"
-  );
-  const [output, setOutput] = useState("");
+  const [prompt, setPrompt] = useState();
+  const [test, setTest] = useState();
+  const [selectedModel, setSelectedModel] = useState(MODELS[0]);
+  const [output, setOutput] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
   const aborterRef = useRef(new AbortController());
 
   const run = async () => {
-    if (aborterRef.current) {
+    if (!prompt) {
+      // 입력값 없을 시 아무것도 안함
+      return false;
+    } else if (aborterRef.current) {
       aborterRef.current.abort(); // Cancel the previous request
     }
-    setOutput("");
+    const userData = {
+      type: "user",
+      text: [prompt],
+    };
+    setOutput((prev) => [...prev, userData]);
+    setPrompt("");
+    setIsLoading(true);
     aborterRef.current = new AbortController();
-
     try {
-      const response = await fetch(`${URL}/chain`, {
+      const response = await fetch(`${URL}/chain/${selectedModel.key}`, {
         signal: aborterRef.current.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
       });
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          setIsLoading(false);
+          break;
+        }
         const decoded = decoder.decode(value, { stream: true });
-        setOutput((prev) => prev + decoded);
+        const botData = {
+          type: "bot",
+          text: [decoded],
+        };
+
+        console.log("botData", botData);
+
+        setOutput((prev) => {
+          const updatedOutput = [...prev];
+          if (
+            updatedOutput.length > 0 &&
+            updatedOutput[updatedOutput.length - 1].type === "bot"
+          ) {
+            updatedOutput[updatedOutput.length - 1].text.push(decoded);
+          } else {
+            updatedOutput.push(botData);
+          }
+          return updatedOutput;
+        });
+        setTest((prev) => prev + decoded);
       }
-      // const response = await axios.post(`${URL}/chat`, {
-      //   prompt,
-      // });
-      // const generatedText = response.data.answer;
-      // setOutput(generatedText);
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error(err);
@@ -47,95 +131,173 @@ const MyComponent = () => {
   };
 
   return (
+    // layout
     <div className="flex h-screen bg-[#121212]">
-      <div className="flex flex-col w-64 bg-[#1E1E1E] p-4 space-y-4">
-        <button className="bg-[#333333] text-white">New Chat</button>
-        <div className="flex flex-col space-y-2">
-          <a className="text-gray-300" href="#">
+      {/* sidebar */}
+      <div className="flex flex-col bg-[#f9f9f9] w-64 p-4 space-y-4">
+        <button className="bg-[#616161] rounded-lg py-3 text-white">
+          New Chat
+        </button>
+        <div className="text-black flex flex-col space-y-2">
+          <a className="" href="#">
             Model files
           </a>
-          <a className="text-gray-300" href="#">
+          <a className="" href="#">
             Prompts
           </a>
-          <a className="text-gray-300" href="#">
+          <a className="" href="#">
             Documents
           </a>
         </div>
+        {test}
       </div>
-      <div className="flex flex-col flex-1 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <button className="text-gray-400" variant="ghost">
-            Set as default
-          </button>
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <div className="h-full">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                {/* <Badge variant="secondary">Llava:latest (4.4GB)</Badge> */}
-                {/* <ChevronDownIcon className="text-gray-400" /> */}
-              </div>
-              {/* <div className="text-white">안녕 챗봇</div> */}
-              <div className="text-white">{output}</div>
+      {/* sidebar */}
+      {/* main container */}
+      <div className="bg-white flex flex-col flex-1 p-4">
+        {/* model selection */}
+        <section className="mx-auto mb-4 juice:gap-4 juice:md:gap-6 md:max-w-[40rem] md:min-w-[40rem] lg:max-w-[48rem] lg:min-w-[48rem] xl:max-w-[48rem] xl:min-w-[48rem] justify-end flex">
+          <Menu as="div" className="relative inline-block text-left">
+            <div>
+              <MenuButton className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                {selectedModel.label}
+                <ChevronDownIcon
+                  className="-mr-1 h-5 w-5 text-gray-400"
+                  aria-hidden="true"
+                />
+              </MenuButton>
+            </div>
 
-              {/* <div
-                className="flex items-center space-x-2 "
-                style={{ width: "-webkit-fill-available" }}
-              > */}
-              <div
-                className="flex items-center justify-between bg-[#333333] p-4 rounded-lg fixed bottom-2 mr-4"
-                style={{ width: "-webkit-fill-available" }}
-              >
-                <div className="flex items-center w-full">
-                  <PlusIcon className="mr-2 text-white w-fit" />
-                  <div className="">
-                    <input
-                    className="w-full min-w-[50rem]"
-                      placeholder="text"
-                      onChange={(e) => setPrompt(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    onClick={() => handleSubmit()}
-                    className="border ml-4 p-1 bg-white"
-                  >
-                    전송
-                  </button>
-                  <div className="w-fit flex">
-                    <MicIcon className="text-white mx-4" />
-                    <SettingsIcon className="text-white" />
-                  </div>
+            <Transition
+              enter="transition ease-out duration-100"
+              enterFrom="transform opacity-0 scale-95"
+              enterTo="transform opacity-100 scale-100"
+              leave="transition ease-in duration-75"
+              leaveFrom="transform opacity-100 scale-100"
+              leaveTo="transform opacity-0 scale-95"
+            >
+              <MenuItems className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div className="py-1">
+                  {MODELS.map((val) => {
+                    return (
+                      <MenuItem>
+                        {({ focus }) => (
+                          <a
+                            onClick={() => {
+                              setSelectedModel(val);
+                            }}
+                            href="#"
+                            className={classNames(
+                              focus
+                                ? "bg-gray-100 text-gray-900"
+                                : "text-gray-700",
+                              "block px-4 py-2 text-sm"
+                            )}
+                          >
+                            {val.label}
+                          </a>
+                        )}
+                      </MenuItem>
+                    );
+                  })}
+                </div>
+              </MenuItems>
+            </Transition>
+          </Menu>
+        </section>
+        {/* propmt output section */}
+        <section className="flex-1 overflow-hidden overflow-y-auto max-h-[83%]">
+          <div className="mx-auto flex flex-col flex-1 gap-7 text-base juice:gap-4 juice:md:gap-6 md:max-w-3xl lg:max-w-[40rem] xl:max-w-[48rem] mt-5">
+            {/* 프롬프트 결과값 아웃풋 */}
+            {output &&
+              output.map((val) => {
+                if (val.type === "bot") {
+                  return (
+                    // 봇일 때
+                    <div className="flex gap-7">
+                      <div className="flex-shrink-0 flex flex-col relative items-end pt-2">
+                        {/* 봇 이미지 */}
+                        <img src={chatBot} width={33} />
+                      </div>
+                      <div className="w-full">
+                        {val.text.map((words) => (
+                          <p className="markdown prose w-full break-words dark:prose-invert light mt-3 mb-3">
+                            {words}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // 유저일경우
+                  return (
+                    <div className="w-full text-end">
+                      {val.text.map((words) => (
+                        <p className="text-end w-auto float-right rounded-[10px] py-2.5 px-4 bg-[rgba(128,128,128,0.18)] markdown prose break-words dark:prose-invert light">
+                          {words}
+                        </p>
+                      ))}
+                    </div>
+                  );
+                }
+              })}
+          </div>
+        </section>
+        {/* propmt output section */}
+        {/* 아래 프롬프트 입력칸 */}
+        <section className="mx-auto mb-4 juice:gap-4 juice:md:gap-6 md:max-w-3xl md:min-w-3xl lg:max-w-[40rem] lg:min-w-[40rem] xl:max-w-[48rem] xl:min-w-[40rem] justify-end flex">
+          <div className="flex items-center bg-[#f4f4f4] h-[3em] px-4 rounded-3xl left-1/2 transform min-w-[40em]">
+            <div className="flex items-center w-full h-full justify-between">
+              <div className="flex justify-between flex-1 h-full items-center">
+                <svg
+                  onClick={() => {
+                    alert("준비 중!");
+                  }}
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="size-6 mr-4 w-fit cursor-pointer"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18.97 3.659a2.25 2.25 0 0 0-3.182 0l-10.94 10.94a3.75 3.75 0 1 0 5.304 5.303l7.693-7.693a.75.75 0 0 1 1.06 1.06l-7.693 7.693a5.25 5.25 0 1 1-7.424-7.424l10.939-10.94a3.75 3.75 0 1 1 5.303 5.304L9.097 18.835l-.008.008-.007.007-.002.002-.003.002A2.25 2.25 0 0 1 5.91 15.66l7.81-7.81a.75.75 0 0 1 1.061 1.06l-7.81 7.81a.75.75 0 0 0 1.054 1.068L18.97 6.84a2.25 2.25 0 0 0 0-3.182Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+
+                <div className="w-full h-full items-center">
+                  <input
+                    style={{
+                      outline: "none",
+                    }}
+                    className="w-full bg-[#f4f4f4] h-full"
+                    placeholder="메세지를 입력해주세요"
+                    onChange={(e) => setPrompt(e.target.value)}
+                    value={prompt}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !isLoading) {
+                        handleSubmit();
+                      }
+                    }}
+                  />
                 </div>
               </div>
-              {/* </div> */}
+              <svg
+                onClick={() => !isLoading && handleSubmit()}
+                className="cursor-pointer"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+              >
+                <path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.59 5.58L20 12l-8-8-8 8z" />
+              </svg>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
 };
-
-function MicIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" x2="12" y1="19" y2="22" />
-    </svg>
-  );
-}
 
 function PlusIcon(props) {
   return (
@@ -153,64 +315,6 @@ function PlusIcon(props) {
     >
       <path d="M5 12h14" />
       <path d="M12 5v14" />
-    </svg>
-  );
-}
-
-function SettingsIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function ChevronDownIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function PlaneIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
     </svg>
   );
 }

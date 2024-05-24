@@ -125,7 +125,7 @@ def llm_OpenAI(g, prompt):
         )
         # llm_chain.invoke({"text": ""})                    # OK 
         # llm_chain.invoke({"text": "", "question": ""})      # OK 
-        llm_chain.invoke({"context": "", "question": ""})      # OK 
+        _res = llm_chain.invoke({"context": "", "question": ""})      # OK 
         # # Chain 실행
         # # response = llm_chain.invoke({"question": user_prompt})
         # answer = llm_chain.invoke(query.question).strip()
@@ -175,12 +175,6 @@ def llm_openAI_with_chroma(g, prompt):
     g.close()
     return docs
 
-def chain(prompt):
-    g = ThreadedGenerator()
-    # threading.Thread(target=llm_OpenAI, args=(g, prompt)).start()
-    threading.Thread(target=llm_openAI_with_chroma, args=(g, prompt)).start()
-    # threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
-    return g
 
 def load_chunk_persist_pdf(dataPath) -> Chroma:
     data = []
@@ -209,13 +203,21 @@ def dbtest():
         return docs[0].page_content
     else:
         return "No relevant documents found."
+    
+def chain(prompt, modal):
+    g = ThreadedGenerator()
+    if modal == '1':
+        threading.Thread(target=llm_OpenAI, args=(g, prompt)).start()
+    elif modal == '2':
+        threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
+    else:    
+        threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
+    # threading.Thread(target=llm_openAI_with_chroma, args=(g, prompt)).start()
+    return g
 
-@app.route('/chain', methods=['POST'])
-def _chain():
-    return Response(chain(request.json['prompt']), mimetype='text/plain')     # OK
-    # query = request.json["question"]                                          # KeyError: 'question'
-    # answer = chain.invoke(query).strip()
-    # return jsonify({"answer": answer})
+@app.route('/chain/<modal>', methods=['POST'])
+def _chain(modal):
+    return Response(chain(request.json['prompt'], modal), mimetype='text/plain')     # OK
 
 if __name__ == '__main__':
     api_key = load_api_key()

@@ -6,6 +6,14 @@
   height: 40vmin;
   pointer-events: none;
 }
+/* 
+.scroll::-webkit-scrollbar {
+  display: none;
+} */
+
+::-webkit-scrollbar {
+  display: none;
+}
 
 @media (prefers-reduced-motion: no-preference) {
   .App-logo {
