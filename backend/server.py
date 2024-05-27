@@ -19,6 +19,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings.sentence_transformer import (
     SentenceTransformerEmbeddings,
 )
+from langchain.chains import RetrievalQA
 from src.utils import load_persisted_chroma_db
 from dotenv import load_dotenv
 import warnings
@@ -168,13 +169,19 @@ def llm_openAI_with_chroma(g, prompt):
     # Chroma DB를 로드합니다.
     db = load_persisted_chroma_db()
     # 로드된 DB를 이용하여 Retriever를 초기화합니다.
-    retriever = db.as_retriever(search_type="similarity")
-    # Retriever를 호출 시, custom callback을 포함합니다.
-    docs = retriever.invoke(prompt, {"callbacks": ChainStreamHandler(g)})
-    print('docs', docs)
+    model = ChatOpenAI(
+            verbose=True,
+            streaming=True,
+            callbacks=[ChainStreamHandler(g)],
+            temperature=0.7,
+        )
+    chain = RetrievalQA.from_chain_type(
+        llm=model,
+        chain_type="stuff",
+        retriever=db.as_retriever(),
+    )
+    _res = chain.run(prompt)
     g.close()
-    return docs
-
 
 def load_chunk_persist_pdf(dataPath) -> Chroma:
     data = []
@@ -210,9 +217,11 @@ def chain(prompt, modal):
         threading.Thread(target=llm_OpenAI, args=(g, prompt)).start()
     elif modal == '2':
         threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
-    else:    
+    elif modal == '3':
         threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
-    # threading.Thread(target=llm_openAI_with_chroma, args=(g, prompt)).start()
+    else:
+        threading.Thread(target=llm_openAI_with_chroma, args=(g, prompt)).start()
+
     return g
 
 @app.route('/chain/<modal>', methods=['POST'])

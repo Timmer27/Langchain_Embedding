@@ -24,6 +24,10 @@ const MODELS = [
     key: "3",
     label: "Ollama",
   },
+  {
+    key: "4",
+    label: "커스텀 데이터 모델 (Chroma)",
+  },
 ];
 
 const chats = [
@@ -284,7 +288,8 @@ const MyComponent = () => {
                     onChange={(e) => setPrompt(e.target.value)}
                     value={prompt}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !isLoading) {
+                      // if (e.key === "Enter" && !isLoading) {
+                        if (e.key === "Enter") {
                         handleSubmit();
                       }
                     }}
