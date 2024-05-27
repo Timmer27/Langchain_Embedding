@@ -59,9 +59,9 @@ function classNames(...classes) {
 }
 
 const MyComponent = () => {
+  const bottomRef = useRef(null);
   const URL = process.env.REACT_APP_URL;
   const [prompt, setPrompt] = useState();
-  const [test, setTest] = useState();
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
   const [output, setOutput] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,6 +92,14 @@ const MyComponent = () => {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let words = "";
+
+      // Initialize the botData object
+      const botData = {
+        type: "bot",
+        text: [words],
+      };
+      setOutput((prev) => [...prev, botData]);
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
@@ -99,26 +107,15 @@ const MyComponent = () => {
           break;
         }
         const decoded = decoder.decode(value, { stream: true });
-        const botData = {
-          type: "bot",
-          text: [decoded],
-        };
+        words += decoded;
 
-        console.log("botData", botData);
-
+        // Update the text data in the last index of the output array
         setOutput((prev) => {
           const updatedOutput = [...prev];
-          if (
-            updatedOutput.length > 0 &&
-            updatedOutput[updatedOutput.length - 1].type === "bot"
-          ) {
-            updatedOutput[updatedOutput.length - 1].text.push(decoded);
-          } else {
-            updatedOutput.push(botData);
-          }
+          const lastElement = updatedOutput[updatedOutput.length - 1];
+          lastElement.text = [words]; // Update the text array with the new words
           return updatedOutput;
         });
-        setTest((prev) => prev + decoded);
       }
     } catch (err) {
       if (err.name !== "AbortError") {
@@ -129,6 +126,12 @@ const MyComponent = () => {
   const handleSubmit = () => {
     run();
   };
+
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [output]);
 
   return (
     // layout
@@ -149,7 +152,6 @@ const MyComponent = () => {
             Documents
           </a>
         </div>
-        {test}
       </div>
       {/* sidebar */}
       {/* main container */}
@@ -209,18 +211,21 @@ const MyComponent = () => {
           <div className="mx-auto flex flex-col flex-1 gap-7 text-base juice:gap-4 juice:md:gap-6 md:max-w-3xl lg:max-w-[40rem] xl:max-w-[48rem] mt-5">
             {/* 프롬프트 결과값 아웃풋 */}
             {output &&
-              output.map((val) => {
+              output.map((val, index) => {
                 if (val.type === "bot") {
                   return (
                     // 봇일 때
-                    <div className="flex gap-7">
+                    <div key={index} className="flex gap-7">
                       <div className="flex-shrink-0 flex flex-col relative items-end pt-2">
                         {/* 봇 이미지 */}
                         <img src={chatBot} width={33} />
                       </div>
                       <div className="w-full">
-                        {val.text.map((words) => (
-                          <p className="markdown prose w-full break-words dark:prose-invert light mt-3 mb-3">
+                        {val.text.map((words, i) => (
+                          <p
+                            key={i}
+                            className="markdown prose w-full break-words dark:prose-invert light mt-3 mb-3"
+                          >
                             {words}
                           </p>
                         ))}
@@ -230,9 +235,12 @@ const MyComponent = () => {
                 } else {
                   // 유저일경우
                   return (
-                    <div className="w-full text-end">
-                      {val.text.map((words) => (
-                        <p className="text-end w-auto float-right rounded-[10px] py-2.5 px-4 bg-[rgba(128,128,128,0.18)] markdown prose break-words dark:prose-invert light">
+                    <div key={index} className="w-full text-end">
+                      {val.text.map((words, i) => (
+                        <p
+                          key={i}
+                          className="text-end w-auto float-right rounded-[10px] py-2.5 px-4 bg-[rgba(128,128,128,0.18)] markdown prose break-words dark:prose-invert light"
+                        >
                           {words}
                         </p>
                       ))}
@@ -240,6 +248,8 @@ const MyComponent = () => {
                   );
                 }
               })}
+            <div ref={bottomRef} />
+            {isLoading && <p className="pb-4">Loading...</p>}
           </div>
         </section>
         {/* propmt output section */}
