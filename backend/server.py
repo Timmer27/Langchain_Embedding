@@ -1,4 +1,5 @@
 import os
+import random
 import configparser
 from flask import Flask, Response, request, jsonify
 import threading
@@ -9,7 +10,8 @@ from langchain_community.llms import GPT4All
 # from langchain_community.llms import Ollama
 from langchain.llms import Ollama
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.prompts import PromptTemplate
+from langchain.prompts import PromptTemplate, ChatPromptTemplate
+from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel
 from langchain.document_loaders import WebBaseLoader, TextLoader, PyPDFLoader
@@ -19,20 +21,38 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.embeddings.sentence_transformer import (
     SentenceTransformerEmbeddings,
 )
+from werkzeug.utils import secure_filename
 from langchain.chains import RetrievalQA
-from src.utils import load_persisted_chroma_db
+from src.utils import load_persisted_chroma_db, train_pdf_chroma_db
 from dotenv import load_dotenv
+from pymongo import MongoClient
+from bson import ObjectId
+from deepeval.models.base_model import DeepEvalBaseLLM
 import warnings
 warnings.filterwarnings("ignore")
 
+# # Determine which environment we're in
+# flask_env = os.getenv('FLASK_ENV', 'development')
 
-# from langchain.chains import RunnableSequence, RunnableLambda, RunnablePassthrough
-from langchain_core.runnables import RunnableLambda, RunnableSequence, RunnablePassthrough
-
+# # Load the appropriate .env file
+# if flask_env == 'production':
+#     load_dotenv()
+# else:
+#     load_dotenv('.env.development')
+load_dotenv()
 app = Flask(__name__)
+mongo_url = os.getenv("URL")
+print(">?>>>>>>>>>>>>>", mongo_url)
+client = MongoClient(f'mongodb://{mongo_url}:27017/')
 CORS(app)
 
-load_dotenv()
+
+UPLOAD_FOLDER = 'data'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+
 def load_api_key():
     config = configparser.ConfigParser()
     config.read('config.ini')
@@ -167,7 +187,9 @@ def llm_Ollama(g, prompt):
 
 def llm_openAI_with_chroma(g, prompt):
     # Chroma DB를 로드합니다.
-    db = load_persisted_chroma_db()
+    # db = load_persisted_chroma_db()
+    # 현재는 pdf 만 갖고오는 db
+    db = train_pdf_chroma_db('./data')
     # 로드된 DB를 이용하여 Retriever를 초기화합니다.
     model = ChatOpenAI(
             verbose=True,
@@ -179,38 +201,30 @@ def llm_openAI_with_chroma(g, prompt):
         llm=model,
         chain_type="stuff",
         retriever=db.as_retriever(),
+        return_source_documents=True,
     )
-    _res = chain.run(prompt)
+    # chain = (
+    #     {
+    #         "context": db.as_retriever(),
+    #         "question": RunnablePassthrough(),
+    #     }
+    #     | PromptTemplate(input_variables=["text"], template=prompt)
+    #     | model
+    # )
+    # chain = (
+    #     RunnablePassthrough.assign(source_documents=condense_question | db.as_retriever)
+    #     | RunnablePassthrough.assign(context=lambda inputs: format_docs(inputs["source_documents"]) if inputs["source_documents"] else "")
+    #     | RunnablePassthrough.assign(prompt=prompt)
+    #     | RunnablePassthrough.assign(response=lambda inputs: model(inputs["prompt"].messages))
+    # )
+
+    _res = chain.invoke(prompt)
+    # _res = chain.run(prompt)
+    print('_res', _res)
+    # print('_res', _res['result'])
+    # print('_res', _res.get(['result']))
     g.close()
 
-def load_chunk_persist_pdf(dataPath) -> Chroma:
-    data = []
-    for file in os.listdir(dataPath):
-        if file.endswith('.pdf'):
-            pdf_path = os.path.join(dataPath, file)
-            loader = PyPDFLoader(pdf_path)
-            data.extend(loader.load())
-    # 데이터 분할
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 500, 
-        chunk_overlap = 0
-    )
-    documents = text_splitter.split_documents(data)
-
-    db = Chroma.from_documents(persist_directory="vector_store", documents=documents, embedding=OpenAIEmbeddings())
-    return db
-
-@app.route('/dbtest', methods=['GET'])
-def dbtest():
-    # db = load_chunk_persist_pdf('./data')
-    db = load_persisted_chroma_db()
-    retriever = db.as_retriever()
-    docs = retriever.invoke("경제전망 어케 되냐")
-    if docs:
-        return docs[0].page_content
-    else:
-        return "No relevant documents found."
-    
 def chain(prompt, modal):
     g = ThreadedGenerator()
     if modal == '1':
@@ -227,6 +241,104 @@ def chain(prompt, modal):
 @app.route('/chain/<modal>', methods=['POST'])
 def _chain(modal):
     return Response(chain(request.json['prompt'], modal), mimetype='text/plain')     # OK
+
+@app.route('/model/<modalId>', methods=['GET'])
+def edit_modals(modalId):
+    db = client['vector_files']
+    file_collection = db["file_collection"]
+    object_id = ObjectId(modalId)
+    document = file_collection.find_one({"_id": object_id})
+    # for document in cursor:
+    #     modalObj.append({"id": document.get('_id'), "key": "4", "label": document.get('modal'), "files": document.get('files')})
+    return jsonify({"key": "4", "label": document.get('modal'), "files": document.get('files')})
+
+@app.route('/model/<modalId>', methods=['DELETE'])
+def delete_model(modalId):
+    db = client['vector_files']
+    file_collection = db["file_collection"]
+    object_id = ObjectId(modalId)
+    result = file_collection.delete_one({"_id": object_id})
+    # Check if the document was deleted
+    if result.deleted_count > 0:
+        print("Document deleted successfully.", result)
+        return "Document deleted successfully."
+    else:
+        print("No document found with the specified _id.", result)
+        return "No document found with the specified _id."
+
+@app.route('/saved_modals', methods=['GET'])
+def fetch_modals():
+    db = client['vector_files']
+    file_collection = db["file_collection"]
+    cursor = file_collection.find({})
+
+    modalObj = []
+    for document in cursor:
+        modalObj.append({"id": str(document.get('_id')), "key": "4", "label": document.get('modal'), "files": document.get('files')})
+    return jsonify(modalObj)
+
+class AzureOpenAI(DeepEvalBaseLLM):
+    def __init__(
+        self,
+        model
+    ):
+        self.model = model
+
+    def load_model(self):
+        return self.model
+
+    def generate(self, prompt: str) -> str:
+        chat_model = self.load_model()
+        return chat_model.invoke(prompt).content
+
+    async def a_generate(self, prompt: str) -> str:
+        chat_model = self.load_model()
+        res = await chat_model.ainvoke(prompt)
+        return res.content
+
+    def get_model_name(self):
+        return "Custom Azure OpenAI Model"
+
+@app.route('/test', methods=['GET'])
+def _test():
+    db = client['vector_files']
+    file_collection = db["file_collection"]
+    cursor = file_collection.find({})
+
+    # Iterate over the cursor to access the documents
+    for document in cursor:
+        print(document)
+    return client.list_database_names()
+
+@app.route('/upload/<modalName>', methods=['POST'])
+def upload_files(modalName):
+    db = client['vector_files']
+    file_collection = db["file_collection"]
+
+    files = request.files.getlist('files')  # 여러 파일을 수신할 수 있도록 getlist 사용
+
+    if not files:
+        return jsonify({'error': 'No selected files'}), 400
+
+    saved_files = []
+    for file in files:
+        original_filename = secure_filename(file.filename)
+
+        # 원래 파일 이름을 사용하여 저장
+        unique_filename = f"{random.randint(10000, 99999)}_{original_filename}"
+
+
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        file.save(file_path)
+
+        saved_files.append(unique_filename)
+
+    # 몽고db insert
+    files = {"modal": modalName, "files": saved_files }
+    file_collection.insert_one(files)
+
+    return jsonify({'message': 'Files successfully uploaded', 'files': saved_files}), 200
+
 
 if __name__ == '__main__':
     api_key = load_api_key()
