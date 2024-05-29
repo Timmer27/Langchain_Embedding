@@ -243,6 +243,7 @@ const MyComponent = () => {
           <ModalLayout
             open={open}
             setOpen={setOpen}
+            models={models}
             fetchModals={fetchModals}
           />
           {modelId && (

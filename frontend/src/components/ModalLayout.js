@@ -1,6 +1,16 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import RegisterForm from "./RegisterForm";
-import { Button, Input, Dropdown, Menu, Space, Modal } from "antd";
+import {
+  Button,
+  Input,
+  Dropdown,
+  Menu,
+  Space,
+  Modal,
+  Select,
+  List,
+  Skeleton,
+} from "antd";
 import {
   DownOutlined,
   ClockCircleOutlined,
@@ -17,15 +27,16 @@ import {
   CloseOutlined,
   AppstoreOutlined,
 } from "@ant-design/icons";
+import axios from "axios";
 
 const items = [
   {
     icon: <DashboardOutlined />,
-    label: "모델",
+    label: "모델 추가",
   },
   {
     icon: <ClockCircleOutlined />,
-    label: "작업 중",
+    label: "모델 수정",
   },
   {
     icon: <UserOutlined />,
@@ -37,8 +48,10 @@ const items = [
   },
 ];
 
-const ModalLayout = ({ open, setOpen, fetchModals }) => {
+const ModalLayout = ({ open, setOpen, models, fetchModals }) => {
   const [selected, setSelected] = useState(0);
+  const [selectedId, setSelectedId] = useState();
+  const [files, setFiles] = useState([]);
 
   const handleOk = () => {
     setOpen(false);
@@ -50,6 +63,33 @@ const ModalLayout = ({ open, setOpen, fetchModals }) => {
   const onClick = (e) => {
     console.log("click ", e);
   };
+
+  const handleChange = (id) => {
+    setSelectedId(id);
+    fetchSavedModel(id);
+    // console.log(e);
+  };
+
+  const fetchSavedModel = async (modelId) => {
+    const response = await axios.get(`http://localhost:5001/model/${modelId}`);
+    const data = response.data;
+    setFiles(data.files);
+    // setSelectedName(data.label);
+  };
+
+  const deleteFilesHandler = async (modelId, fileName) => {
+    const response = await axios.delete(
+      `http://localhost:5001/model/file/${fileName}/id/${modelId}`
+    );
+    const data = response.data;
+    setFiles(data.files);
+    // mongodb에서만 지우고
+    fetchSavedModel(modelId);
+  };
+
+  useEffect(() => {
+    setFiles([]);
+  }, [selected]);
 
   return (
     open && (
@@ -90,7 +130,7 @@ const ModalLayout = ({ open, setOpen, fetchModals }) => {
                 <RegisterForm setOpen={setOpen} fetchModals={fetchModals} />
               ) : selected === 1 ? (
                 <div className="space-y-4">
-                  <div className="space-y-2">
+                  {/* <div className="space-y-2">
                     <h2 className="text-lg font-semibold">
                       Manage Ollama Models
                     </h2>
@@ -132,10 +172,62 @@ const ModalLayout = ({ open, setOpen, fetchModals }) => {
                         click here
                       </a>
                     </p>
-                  </div>
+                  </div> */}
                   <div className="space-y-2">
-                    <h3 className="text-lg font-semibold">Delete a model</h3>
-                    <div className="flex items-center justify-between bg-[#e7e7e7] p-2 rounded-md">
+                    <h3 className="text-lg font-semibold">
+                      모델 학습용 파일 수정
+                    </h3>
+                    <Select
+                      placeholder={"선택해주세요"}
+                      //   defaultValue={models.filter((val) => val.files)[0].label}
+                      className="w-full flex items-center justify-between"
+                      onChange={handleChange}
+                      options={models
+                        .filter((val) => val.files)
+                        .map((val) => {
+                          return {
+                            value: val.id,
+                            label: val.label,
+                          };
+                        })}
+                    />
+                    {files && (
+                      <List
+                        itemLayout="horizontal"
+                        dataSource={files || []}
+                        renderItem={(item) => (
+                          <List.Item>
+                            <Skeleton
+                              avatar
+                              title={false}
+                              loading={item.loading}
+                              active
+                            >
+                              <List.Item.Meta
+                                // avatar={<Avatar src={item.picture.large} />}
+                                title={
+                                  <div className="flex w-full justify-between">
+                                    <div>{item}</div>
+                                    {files.length > 1 && (
+                                      <Button
+                                        onClick={() => {
+                                          deleteFilesHandler(selectedId, item);
+                                        }}
+                                      >
+                                        삭제
+                                      </Button>
+                                    )}
+                                  </div>
+                                  // </Checkbox>
+                                }
+                              />
+                            </Skeleton>
+                          </List.Item>
+                        )}
+                      />
+                    )}
+
+                    {/* <Select className="flex items-center justify-between p-2 rounded-md">
                       <span>Select a model</span>
                       <div className="flex space-x-2">
                         <Button
@@ -149,21 +241,7 @@ const ModalLayout = ({ open, setOpen, fetchModals }) => {
                           className="text-white"
                         />
                       </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Experimental</h3>
-                    <Button type="text" className="text-white">
-                      Show
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">
-                      Manage LiteLLM Models
-                    </h3>
-                    <Button type="text" className="text-white">
-                      Show
-                    </Button>
+                    </Select> */}
                   </div>
                 </div>
               ) : (

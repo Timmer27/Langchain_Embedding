@@ -41,7 +41,8 @@ warnings.filterwarnings("ignore")
 #     load_dotenv('.env.development')
 load_dotenv()
 app = Flask(__name__)
-mongo_url = os.getenv("URL")
+# mongo_url = os.getenv("URL")
+mongo_url = "localhost"
 print(">?>>>>>>>>>>>>>", mongo_url)
 client = MongoClient(f'mongodb://{mongo_url}:27017/')
 CORS(app)
@@ -265,6 +266,26 @@ def delete_model(modalId):
     else:
         print("No document found with the specified _id.", result)
         return "No document found with the specified _id."
+    
+@app.route('/model/file/<fileName>/id/<modalId>', methods=['DELETE'])
+def delete_model_files(fileName, modalId):
+    db = client['vector_files']
+    file_collection = db["file_collection"]
+    object_id = ObjectId(modalId)
+
+    # Use $pull to remove the filename from the files array
+    result = file_collection.update_one(
+        {"_id": object_id},
+        {"$pull": {"files": fileName}}
+    )
+    
+    # Check if the filename was removed
+    if result.modified_count > 0:
+        print("Filename removed successfully.", result)
+        return "Filename removed successfully."
+    else:
+        print("No document found with the specified _id and filename.", result)
+        return "No document found with the specified _id and filename."
 
 @app.route('/saved_modals', methods=['GET'])
 def fetch_modals():

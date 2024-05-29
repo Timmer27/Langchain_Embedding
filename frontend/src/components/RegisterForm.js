@@ -26,7 +26,6 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
       const totalSize = acc + cur.size; // Use a different variable name for the accumulator
       return totalSize;
     }, 0);
-    console.log("file", file);
     setSelectedFiles(file.fileList);
     // const sum = 1
   };
@@ -76,6 +75,7 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
           key="submit"
           type="primary"
           // loading={loading}
+          disabled={selectedFiles.length === 0}
           onClick={async () => {
             const result = await fileSubmitHandler();
             if (result) {
