@@ -130,53 +130,11 @@ const ModalLayout = ({ open, setOpen, models, fetchModals }) => {
                 <RegisterForm setOpen={setOpen} fetchModals={fetchModals} />
               ) : selected === 1 ? (
                 <div className="space-y-4">
-                  {/* <div className="space-y-2">
-                    <h2 className="text-lg font-semibold">
-                      Manage Ollama Models
-                    </h2>
-                    <div className="flex items-center justify-between bg-[#e7e7e7] p-2 rounded-md">
-                      <span>http://localhost:11434</span>
-                      <div className="flex space-x-2">
-                        <Button
-                          type="text"
-                          icon={<DownOutlined />}
-                          className="text-white"
-                        />
-                        <Button
-                          type="text"
-                          icon={<ClockCircleOutlined />}
-                          className="text-white"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold">
-                      Pull a model from Ollama.com
-                    </h3>
-                    <div className="flex items-center bg-[#e7e7e7] p-2 rounded-md">
-                      <Input
-                        className="bg-transparent text-white"
-                        placeholder="Enter model tag (e.g. mistral:7b)"
-                      />
-                      <Button
-                        type="text"
-                        icon={<DownloadOutlined />}
-                        className="text-white"
-                      />
-                    </div>
-                    <p className="text-sm">
-                      To access the available model names for downloading,
-                      <a className="text-blue-500" href="#">
-                        {" "}
-                        click here
-                      </a>
-                    </p>
-                  </div> */}
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold">
                       모델 학습용 파일 수정
                     </h3>
+                  <div className="flex">
                     <Select
                       placeholder={"선택해주세요"}
                       //   defaultValue={models.filter((val) => val.files)[0].label}
@@ -191,6 +149,12 @@ const ModalLayout = ({ open, setOpen, models, fetchModals }) => {
                           };
                         })}
                     />
+                    {/* <Button
+                      type="text"
+                      icon={<DeleteOutlined />}
+                      //   className="text-white"
+                    /> */}
+                    </div>
                     {files && (
                       <List
                         itemLayout="horizontal"

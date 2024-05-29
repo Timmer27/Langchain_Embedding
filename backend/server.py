@@ -23,7 +23,7 @@ from langchain_community.embeddings.sentence_transformer import (
 )
 from werkzeug.utils import secure_filename
 from langchain.chains import RetrievalQA
-from src.utils import load_persisted_chroma_db, train_pdf_chroma_db
+from src.utils import load_persisted_chroma_db, train_pdf_chroma_db, initialize_chroma_db
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from bson import ObjectId
@@ -187,11 +187,11 @@ def llm_Ollama(g, prompt):
         g.close()        
 
 def llm_openAI_with_chroma(g, prompt):
-    # Chroma DB를 로드합니다.
-    # db = load_persisted_chroma_db()
-    # 현재는 pdf 만 갖고오는 db
-    db = train_pdf_chroma_db('./data')
-    # 로드된 DB를 이용하여 Retriever를 초기화합니다.
+    # 학습된 pdf 파일명, 경로에 따라 학습할지 말지를 결정
+    # 학습이 안된 파일이 있다면, 잠시 시간이 걸리면서 vector로 변환
+    # front에서 loading state로 ui 띄워주면 좋을듯?? 
+    db = initialize_chroma_db('./data')
+    # 로드된 DB를 이용하여 Retriever 초기화
     model = ChatOpenAI(
             verbose=True,
             streaming=True,
@@ -204,26 +204,7 @@ def llm_openAI_with_chroma(g, prompt):
         retriever=db.as_retriever(),
         return_source_documents=True,
     )
-    # chain = (
-    #     {
-    #         "context": db.as_retriever(),
-    #         "question": RunnablePassthrough(),
-    #     }
-    #     | PromptTemplate(input_variables=["text"], template=prompt)
-    #     | model
-    # )
-    # chain = (
-    #     RunnablePassthrough.assign(source_documents=condense_question | db.as_retriever)
-    #     | RunnablePassthrough.assign(context=lambda inputs: format_docs(inputs["source_documents"]) if inputs["source_documents"] else "")
-    #     | RunnablePassthrough.assign(prompt=prompt)
-    #     | RunnablePassthrough.assign(response=lambda inputs: model(inputs["prompt"].messages))
-    # )
-
     _res = chain.invoke(prompt)
-    # _res = chain.run(prompt)
-    print('_res', _res)
-    # print('_res', _res['result'])
-    # print('_res', _res.get(['result']))
     g.close()
 
 def chain(prompt, modal):
@@ -298,38 +279,13 @@ def fetch_modals():
         modalObj.append({"id": str(document.get('_id')), "key": "4", "label": document.get('modal'), "files": document.get('files')})
     return jsonify(modalObj)
 
-class AzureOpenAI(DeepEvalBaseLLM):
-    def __init__(
-        self,
-        model
-    ):
-        self.model = model
-
-    def load_model(self):
-        return self.model
-
-    def generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        return chat_model.invoke(prompt).content
-
-    async def a_generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        res = await chat_model.ainvoke(prompt)
-        return res.content
-
-    def get_model_name(self):
-        return "Custom Azure OpenAI Model"
-
 @app.route('/test', methods=['GET'])
 def _test():
-    db = client['vector_files']
-    file_collection = db["file_collection"]
-    cursor = file_collection.find({})
-
-    # Iterate over the cursor to access the documents
-    for document in cursor:
-        print(document)
-    return client.list_database_names()
+    db = initialize_chroma_db('./data')
+    print(db.get().keys())
+    print(set([doc['source'] for doc in db.get()['metadatas']]))
+    
+    return "HI"
 
 @app.route('/upload/<modalName>', methods=['POST'])
 def upload_files(modalName):
