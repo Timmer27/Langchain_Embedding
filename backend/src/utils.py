@@ -27,6 +27,32 @@ def train_pdf_chroma_db(files_with_path: list) -> Chroma:
     db = Chroma.from_documents(persist_directory="vector_store", documents=documents, embedding=OpenAIEmbeddings())
     return db
 
+def delete_documents_from_chroma_db(db: Chroma, dataPath: str, fileName: str):
+    try:
+        all_data = db._collection.get()
+        all_ids = all_data['ids']
+        all_metadatas = all_data['metadatas']
+
+        # Get the full path for the given filename
+        file_path = os.path.join(dataPath, fileName)
+
+        documents_to_delete = [
+            all_ids[idx] for idx, metadata in enumerate(all_metadatas) if metadata.get('source') == file_path
+        ]
+        
+        batch_size = 166
+        num_deleted = len(documents_to_delete)
+        num_batches = (num_deleted + batch_size - 1) // batch_size  # Calculate the number of batches needed
+
+        for i in range(num_batches):
+            start_idx = i * batch_size
+            end_idx = min((i + 1) * batch_size, num_deleted)
+            batch_deleted = documents_to_delete[start_idx:end_idx]
+            db.delete(ids=batch_deleted)
+        return 'success'
+    except Exception as e:
+        return f'fail {e}'
+
 def check_documents_in_chroma_db(db: Chroma, dataPath: str) -> bool:
     # Check if all PDF files in the directory are already processed
     existing_filenames = set([doc['source'] for doc in db.get()['metadatas']])
