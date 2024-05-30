@@ -95,67 +95,18 @@ class ChainStreamHandler(StreamingStdOutCallbackHandler):
 
 def llm_OpenAI(g, prompt):
     try:
-        # data = request.get_json()
-        # query = UserQuery(**data)
-        # chat = ChatOpenAI(
-        #     verbose=True,
-        #     streaming=True,
-        #     callbacks=[ChainStreamHandler(g)],
-        #     temperature=0.7,
-        # )
-        # chat([HumanMessage(content=prompt)])
         model = ChatOpenAI(
             verbose=True,
             streaming=True,
             callbacks=[ChainStreamHandler(g)],
             temperature=0.7,
         )
-        # Model 설정
-        # model = OpenAI(
-        #     model_name="gpt-3.5-turbo-instruct",
-        #     temperature=0.2,
-        #     max_tokens=512,
-        #     streaming=True,
-        #     callbacks=[ChainStreamHandler(g)]
-        # )
-        # Vector Store 설정
-        print("Vector Store 설정")
-        
-        db = Chroma(persist_directory="./vector_store", embedding_function=OpenAIEmbeddings())
-        retriever = db.as_retriever(search_type="similarity")
-        
-        # print("retriever ------------> ")
-        # print(retriever)
-        # print("format_docs")
-        # print(format_docs)
-        
-        # llm_chain = PromptTemplate(input_variables=["text"], template=prompt) | model | StrOutputParser()
-        # llm_chain.invoke({"text": ""})
-        # 되는 버전 ------------------------
-        llm_chain = (
-        # llm_chain = ({"context": retriever | format_docs, "question": RunnablePassthrough()}    # TypeError: argument 'text': 'dict' object cannot be converted to 'PyString'
-        # # llm_chain = ( {"text": retriever | format_docs, "question": RunnablePassthrough()}  # TypeError: argument 'text': 'dict' object cannot be converted to 'PyString'
-            # PromptTemplate(template="Your question: {question}")                          
-            PromptTemplate(input_variables=["context", "question"], template=prompt)    # OK
-        # #     # PromptTemplate(input_variables=["context", "question"], template="{context}\n\n{question}")
-        #     # PromptTemplate(input_variables=["text", "question"], template="{prompt}\n\n{question}") # KeyError: "Input to PromptTemplate is missing variables {'prompt'}.  Expected: ['prompt', 'question'] Received: ['text', 'question']" 
-        #     # PromptTemplate(input_variables=["text", "question"], template=prompt)     # OK 
-        #     # | PromptTemplate(input_variables=["text"], template=prompt)               # OK 
-        #     # | prompt      # OK but 안녕 -> 죄송합니다. 해당 질문에 대해서는 답변을 할 수 없습니다. 다른 질문을 해주세요.
+        llm_chain = (                     
+            PromptTemplate(input_variables=["context", "question"], template=prompt)
             | model 
             | StrOutputParser()
         )
-        # llm_chain.invoke({"text": ""})                    # OK 
-        # llm_chain.invoke({"text": "", "question": ""})      # OK 
-        _res = llm_chain.invoke({"context": "", "question": ""})      # OK 
-        # # Chain 실행
-        # # response = llm_chain.invoke({"question": user_prompt})
-        # answer = llm_chain.invoke(query.question).strip()
-        # for token in answer:
-        #     g.send(token)
-        # print("llm_chain.invoke ------------> ")
-
-        
+        _res = llm_chain.invoke({"context": "", "question": ""})
     finally:
         g.close()
 
@@ -281,11 +232,8 @@ def fetch_modals():
 
 @app.route('/test', methods=['GET'])
 def _test():
-    db = initialize_chroma_db('./data')
-    print(db.get().keys())
-    print(set([doc['source'] for doc in db.get()['metadatas']]))
-    
     return "HI"
+
 
 @app.route('/upload/<modalName>', methods=['POST'])
 def upload_files(modalName):
