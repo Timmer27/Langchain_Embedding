@@ -7,27 +7,21 @@ import queue
 from flask_cors import CORS
 from langchain.chat_models import ChatOpenAI
 from langchain_community.llms import GPT4All
-# from langchain_community.llms import Ollama
 from langchain.llms import Ollama
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.prompts import PromptTemplate, ChatPromptTemplate
-from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel
-from langchain.document_loaders import WebBaseLoader, TextLoader, PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-from langchain_community.embeddings.sentence_transformer import (
-    SentenceTransformerEmbeddings,
-)
+from langchain import HuggingFaceHub
 from werkzeug.utils import secure_filename
 from langchain.chains import RetrievalQA
-from src.utils import load_persisted_chroma_db, train_pdf_chroma_db, initialize_chroma_db
+from transformers import BertTokenizer, BertForSequenceClassification
+import torch
+from src.utils import initialize_chroma_db
 from dotenv import load_dotenv
 from pymongo import MongoClient
+
 from bson import ObjectId
-from deepeval.models.base_model import DeepEvalBaseLLM
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -53,15 +47,14 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-
-def load_api_key():
+def set_api_key_env_var():
     config = configparser.ConfigParser()
     config.read('config.ini')
     api_key = config['API']['OPENAI_API_KEY']
-    return api_key
-
-def set_api_key_env_var(api_key):
+    huggingface_key = config['HUGGINGFACE_API']['HUGGINGFACEHUB_API_TOKEN']
     os.environ["OPENAI_API_KEY"] = api_key
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = huggingface_key
+    
 
 class UserQuery(BaseModel):
     """user question input model"""
@@ -148,7 +141,7 @@ def llm_openAI_with_chroma(g, prompt):
             streaming=True,
             callbacks=[ChainStreamHandler(g)],
             temperature=0.7,
-        )
+        ) 
     chain = RetrievalQA.from_chain_type(
         llm=model,
         chain_type="stuff",
@@ -266,6 +259,5 @@ def upload_files(modalName):
 
 
 if __name__ == '__main__':
-    api_key = load_api_key()
-    set_api_key_env_var(api_key)
+    set_api_key_env_var()
     app.run(host='0.0.0.0', port=5001, threaded=True, debug=True)

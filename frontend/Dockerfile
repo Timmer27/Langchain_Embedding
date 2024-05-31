@@ -18,6 +18,10 @@ COPY . .
 # Copy environment files (assuming they are in the root of the project)
 COPY .env.* ./
 
+ARG REACT_APP_URL
+
+ENV REACT_APP_URL $REACT_APP_URL
+
 # Expose the port that the app runs on
 EXPOSE 3000
 

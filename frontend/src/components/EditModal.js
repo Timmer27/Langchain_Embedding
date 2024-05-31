@@ -52,7 +52,7 @@ const EditModal = ({ modelId, open, setOpen }) => {
 
     try {
       const response = await axios.post(
-        `http://localhost:5001/upload/${selectedName}`,
+        `${process.env.REACT_APP_URL}upload/${selectedName}`,
         data,
         {
           headers: {
@@ -69,7 +69,7 @@ const EditModal = ({ modelId, open, setOpen }) => {
   };
 
   const fetchSavedModel = async () => {
-    const response = await axios.get(`http://localhost:5001/model/${modelId}`);
+    const response = await axios.get(`${process.env.REACT_APP_URL}model/${modelId}`);
     const data = response.data;
     console.log(data);
     setFiles(data.files);

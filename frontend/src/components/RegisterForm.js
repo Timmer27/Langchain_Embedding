@@ -41,7 +41,7 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
 
     try {
       const response = await axios.post(
-        `http://localhost:5001/upload/${selectedName}`,
+        `${process.env.REACT_APP_URL}upload/${selectedName}`,
         data,
         {
           headers: {

@@ -71,7 +71,7 @@ const ModalLayout = ({ open, setOpen, models, fetchModals }) => {
   };
 
   const fetchSavedModel = async (modelId) => {
-    const response = await axios.get(`http://localhost:5001/model/${modelId}`);
+    const response = await axios.get(`${process.env.REACT_APP_URL}model/${modelId}`);
     const data = response.data;
     setFiles(data.files);
     // setSelectedName(data.label);
@@ -79,7 +79,7 @@ const ModalLayout = ({ open, setOpen, models, fetchModals }) => {
 
   const deleteFilesHandler = async (modelId, fileName) => {
     const response = await axios.delete(
-      `http://localhost:5001/model/file/${fileName}/id/${modelId}`
+      `${process.env.REACT_APP_URL}model/file/${fileName}/id/${modelId}`
     );
     const data = response.data;
     setFiles(data.files);

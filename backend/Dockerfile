@@ -13,6 +13,8 @@ COPY config.ini /
 # install app
 COPY server.py /
 
+COPY .env.* ./
+
 # final configuration
 # ENV FLASK_APP=hello
 EXPOSE 5001
