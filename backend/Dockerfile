@@ -2,19 +2,14 @@
 FROM python:3.10
 
 # install app dependencies
-WORKDIR /
-COPY requirements.txt /
+WORKDIR /app
+COPY requirements.txt /app/
 RUN target=/root/.cache/pip \
     pip3 install -r requirements.txt
 
-# Copy the config.ini file into the working directory
-COPY config.ini /
-
-# install app
-COPY server.py /
-
+# Copy the entire project into the working directory
+COPY . /app
 COPY .env.* ./
-
 # final configuration
 # ENV FLASK_APP=hello
 EXPOSE 5001
