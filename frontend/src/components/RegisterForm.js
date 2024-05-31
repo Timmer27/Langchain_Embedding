@@ -41,7 +41,7 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
 
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_URL}upload/${selectedName}`,
+        `${process.env.REACT_APP_URL}/upload/${selectedName}`,
         data,
         {
           headers: {
@@ -78,6 +78,7 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
           disabled={selectedFiles.length === 0}
           onClick={async () => {
             const result = await fileSubmitHandler();
+            console.log('result', result, process.env.REACT_APP_URL)
             if (result) {
               await fetchModals();
               setOpen(false);
