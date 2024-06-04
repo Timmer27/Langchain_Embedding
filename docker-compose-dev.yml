@@ -1,18 +1,36 @@
 services:
-  flask:
+  flask_dev:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file: 
+      - ./backend/.env.development
     ports:
       - "5001:5001"
     environment:
-      - FLASK_ENV=development
+      FLASK_URL: http://localhost:5001
+      MONGODB_URL: mongodb://mongo:27017/  # Use the service name for MongoDB connection
+    depends_on:
+      - mongo  # Ensure MongoDB starts before Flask      
 
-  react:
+  react_dev:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
     env_file:
       - ./frontend/.env.development
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_URL: http://localhost:5001  
+      
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

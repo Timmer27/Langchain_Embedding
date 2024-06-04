@@ -35,12 +35,10 @@ warnings.filterwarnings("ignore")
 #     load_dotenv('.env.development')
 load_dotenv()
 app = Flask(__name__)
-# mongo_url = os.getenv("URL")
-mongo_url = "localhost"
-print(">?>>>>>>>>>>>>>", mongo_url)
-client = MongoClient(f'mongodb://{mongo_url}:27017/')
+MONGODB_URL = os.getenv("MONGODB_URL")
+print(">?>>>>>>>>>>>>>>>>>>>>>>MONGODB_URLMONGODB_URL", MONGODB_URL)
+client = MongoClient(MONGODB_URL)
 CORS(app)
-
 
 UPLOAD_FOLDER = 'data'
 if not os.path.exists(UPLOAD_FOLDER):
