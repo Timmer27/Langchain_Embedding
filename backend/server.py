@@ -209,17 +209,16 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     # question_answer_chain = create_stuff_documents_chain(model, prompt_template)
     # chain = create_retrieval_chain(db.as_retriever(), question_answer_chain)
 
-        
-    # Create the RunnableWithMessageHistory instance
-    chain_with_history = RunnableWithMessageHistory(
-        chain,
-        _get_chat_history,
-        input_messages_key="question",
-        history_messages_key="history",
-    )
+    # # Create the RunnableWithMessageHistory instance
+    # chain_with_history = RunnableWithMessageHistory(
+    #     chain,
+    #     _get_chat_history,
+    #     input_messages_key="question",
+    #     history_messages_key="history",
+    # )
 
     config = {"configurable": {"session_id": sessionId}}    
-    _res = chain_with_history.invoke({"question": prompt}, config=config)     
+    _res = chain.invoke({"question": prompt}, config=config)     
     # _res = chain.invoke(prompt)
     g.close()
 
