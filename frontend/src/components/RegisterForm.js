@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Input, Modal } from "antd";
+import { Button, Input, Modal, Spin } from "antd";
 import { InboxOutlined } from "@ant-design/icons";
 import { message, Upload } from "antd";
 import axios from "axios";
@@ -8,6 +8,7 @@ const { Dragger } = Upload;
 const RegisterForm = ({ setOpen, fetchModals }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [selectedName, setSelectedName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const onChange = (e) => {
     setSelectedName(e.target.value);
@@ -57,8 +58,30 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
     }
   };
 
+  const initiateModels = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_URL}/initiate`);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
   return (
-    <>
+    <div>
+      <Spin
+        size="large"
+        // tip={"PDF 파일 학습 중..."}
+        spinning={isLoading}
+        style={{
+          padding: 25,
+          background: "rgba(0, 0, 0, 0.05)",
+          borderRadius: "12px",
+          position: "absolute",
+          left: "50%",
+          top: "35%",
+        }}
+      />
       <div className="mb-1">
         <p className="mb-2">모델 이름 입력</p>
         <Input
@@ -77,11 +100,13 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
           // loading={loading}
           disabled={selectedFiles.length === 0}
           onClick={async () => {
+            setIsLoading(true);
             const result = await fileSubmitHandler();
-            console.log('result', result, process.env.REACT_APP_URL)
             if (result) {
               await fetchModals();
+              await initiateModels();
               setOpen(false);
+              setIsLoading(false);
             } else {
               alert("오류 발생");
             }
@@ -108,7 +133,7 @@ const RegisterForm = ({ setOpen, fetchModals }) => {
         </p> */}
       </Dragger>
       <div className="flex justify-end"></div>
-    </>
+    </div>
   );
 };
 export default RegisterForm;

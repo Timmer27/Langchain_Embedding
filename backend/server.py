@@ -1,9 +1,5 @@
-import os
-import random
-import configparser
+import os, json, random, configparser,threading, queue
 from flask import Flask, Response, request, jsonify
-import threading
-import queue
 from flask_cors import CORS
 from langchain.chat_models import ChatOpenAI
 from langchain_community.llms import GPT4All
@@ -12,31 +8,23 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from pydantic import BaseModel
-from langchain import HuggingFaceHub
 from werkzeug.utils import secure_filename
-from langchain.chains import RetrievalQA
-from transformers import BertTokenizer, BertForSequenceClassification
-import torch
+from langchain.chains import RetrievalQA, create_retrieval_chain, create_history_aware_retriever, RetrievalQAWithSourcesChain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from src.utils import initialize_chroma_db
 from dotenv import load_dotenv
 from pymongo import MongoClient
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
 
 from bson import ObjectId
 import warnings
 warnings.filterwarnings("ignore")
 
-# # Determine which environment we're in
-# flask_env = os.getenv('FLASK_ENV', 'development')
-
-# # Load the appropriate .env file
-# if flask_env == 'production':
-#     load_dotenv()
-# else:
-#     load_dotenv('.env.development')
-load_dotenv()
+load_dotenv('.env.development')
 app = Flask(__name__)
 MONGODB_URL = os.getenv("MONGODB_URL")
-print(">?>>>>>>>>>>>>>>>>>>>>>>MONGODB_URLMONGODB_URL", MONGODB_URL)
 client = MongoClient(MONGODB_URL)
 CORS(app)
 
@@ -84,7 +72,15 @@ class ChainStreamHandler(StreamingStdOutCallbackHandler):
     def on_llm_new_token(self, token: str, **kwargs):
         self.gen.send(token)
 
-def llm_OpenAI(g, prompt):
+def _get_chat_history(session_id):
+    return MongoDBChatMessageHistory(
+        session_id=session_id,
+        connection_string=MONGODB_URL,
+        database_name="chat_db",
+        collection_name="chat_histories",
+    )
+
+def llm_OpenAI(g, prompt, sessionId):
     try:
         model = ChatOpenAI(
             verbose=True,
@@ -92,16 +88,30 @@ def llm_OpenAI(g, prompt):
             callbacks=[ChainStreamHandler(g)],
             temperature=0.7,
         )
-        llm_chain = (                     
-            PromptTemplate(input_variables=["context", "question"], template=prompt)
-            | model 
-            | StrOutputParser()
+
+        prompt_template = ChatPromptTemplate.from_messages(
+            [
+                ("system", "You are a helpful assistant."),
+                MessagesPlaceholder(variable_name="history"),
+                ("human", "{question}"),
+            ]
         )
-        _res = llm_chain.invoke({"context": "", "question": ""})
+        llm_chain = (prompt_template | model | StrOutputParser())
+        
+        # Create the RunnableWithMessageHistory instance
+        chain_with_history = RunnableWithMessageHistory(
+            llm_chain,
+            _get_chat_history,
+            input_messages_key="question",
+            history_messages_key="history",
+        )
+
+        config = {"configurable": {"session_id": sessionId}}    
+        _res = chain_with_history.invoke({"question": prompt}, config=config) 
     finally:
         g.close()
 
-def llm_gpt4(g, prompt):
+def llm_gpt4(g, prompt, sessionId):
     try:
         local_path = './models/nous-hermes-llama2-13b.Q4_0.gguf'
         model = GPT4All(
@@ -110,28 +120,63 @@ def llm_gpt4(g, prompt):
             streaming=True,
             verbose=True,
         )
-        llm_chain = PromptTemplate(input_variables=["text"], template=prompt) | model
-        llm_chain.invoke({"text": ""})
+        # llm_chain.invoke({"text": ""})
+        prompt_template = ChatPromptTemplate.from_messages(
+            [
+                ("system", "You are a helpful assistant."),
+                MessagesPlaceholder(variable_name="history"),
+                ("human", "{question}"),
+            ]
+        )
+        llm_chain = prompt_template | model
+
+        # Create the RunnableWithMessageHistory instance
+        chain_with_history = RunnableWithMessageHistory(
+            llm_chain,
+            _get_chat_history,
+            input_messages_key="question",
+            history_messages_key="history",
+        )
+
+        config = {"configurable": {"session_id": sessionId}}    
+        _res = chain_with_history.invoke({"question": prompt}, config=config)         
     finally:
         g.close()
 
-def llm_Ollama(g, prompt):
+def llm_Ollama(g, prompt, sessionId):
     try:
-        local_path = os.path.abspath('./models/nous-hermes-llama2-13b.Q4_0.gguf')  # Use absolute path
+        local_path = os.path.abspath('./models/KoR-Orca-Platypus-13b-v1.5')  # Use absolute path
         model = Ollama(
             model=local_path,
             callbacks=[ChainStreamHandler(g)],
             verbose=True,
         )
-        llm_chain = PromptTemplate(input_variables=["text"], template=prompt) | model
-        llm_chain.invoke({"text": ""})
+        
+        prompt_template = ChatPromptTemplate.from_messages(
+            [
+                ("system", "You are a helpful assistant."),
+                MessagesPlaceholder(variable_name="history"),
+                ("human", "{question}"),
+            ]
+        )
+        llm_chain = prompt_template | model
+        
+        # Create the RunnableWithMessageHistory instance
+        chain_with_history = RunnableWithMessageHistory(
+            llm_chain,
+            _get_chat_history,
+            input_messages_key="question",
+            history_messages_key="history",
+        )
+
+        config = {"configurable": {"session_id": sessionId}}    
+        _res = chain_with_history.invoke({"question": prompt}, config=config) 
     finally:
         g.close()        
 
-def llm_openAI_with_chroma(g, prompt):
+def llm_openAI_with_chroma(g, prompt, sessionId):
     # 학습된 pdf 파일명, 경로에 따라 학습할지 말지를 결정
     # 학습이 안된 파일이 있다면, 잠시 시간이 걸리면서 vector로 변환
-    # front에서 loading state로 ui 띄워주면 좋을듯?? 
     db = initialize_chroma_db('./data')
     # 로드된 DB를 이용하여 Retriever 초기화
     model = ChatOpenAI(
@@ -139,32 +184,61 @@ def llm_openAI_with_chroma(g, prompt):
             streaming=True,
             callbacks=[ChainStreamHandler(g)],
             temperature=0.7,
-        ) 
-    chain = RetrievalQA.from_chain_type(
+        )
+    prompt_template = ChatPromptTemplate.from_messages(
+        [
+            ("system", "You are a helpful assistant."),
+            MessagesPlaceholder(variable_name="history"),
+            ("human", "{question}"),
+        ]
+    )
+    # retriever_chain = create_history_aware_retriever(model, db.as_retriever(), prompt_template)
+    # rag_chain = create_retrieval_chain(db.as_retriever(), create_stuff_documents_chain(model, prompt_template))
+    # chain = RetrievalQA.from_chain_type(
+    #     llm=model,
+    #     chain_type="stuff",
+    #     retriever=db.as_retriever(),
+    #     return_source_documents=True,
+    # )
+    chain = RetrievalQAWithSourcesChain.from_chain_type(
         llm=model,
         chain_type="stuff",
         retriever=db.as_retriever(),
-        return_source_documents=True,
+        # prompt=prompt_template
     )
-    _res = chain.invoke(prompt)
+    # question_answer_chain = create_stuff_documents_chain(model, prompt_template)
+    # chain = create_retrieval_chain(db.as_retriever(), question_answer_chain)
+
+        
+    # Create the RunnableWithMessageHistory instance
+    chain_with_history = RunnableWithMessageHistory(
+        chain,
+        _get_chat_history,
+        input_messages_key="question",
+        history_messages_key="history",
+    )
+
+    config = {"configurable": {"session_id": sessionId}}    
+    _res = chain_with_history.invoke({"question": prompt}, config=config)     
+    # _res = chain.invoke(prompt)
     g.close()
 
-def chain(prompt, modal):
+def chain(prompt, modal, sessionId):
     g = ThreadedGenerator()
     if modal == '1':
-        threading.Thread(target=llm_OpenAI, args=(g, prompt)).start()
+        threading.Thread(target=llm_OpenAI, args=(g, prompt, sessionId)).start()
     elif modal == '2':
-        threading.Thread(target=llm_gpt4, args=(g, prompt)).start()
+        threading.Thread(target=llm_gpt4, args=(g, prompt, sessionId)).start()
     elif modal == '3':
-        threading.Thread(target=llm_Ollama, args=(g, prompt)).start()
+        threading.Thread(target=llm_Ollama, args=(g, prompt, sessionId)).start()
     else:
-        threading.Thread(target=llm_openAI_with_chroma, args=(g, prompt)).start()
+        threading.Thread(target=llm_openAI_with_chroma, args=(g, prompt, sessionId)).start()
 
     return g
 
-@app.route('/chain/<modal>', methods=['POST'])
-def _chain(modal):
-    return Response(chain(request.json['prompt'], modal), mimetype='text/plain')     # OK
+@app.route('/generate/<modal>/id/<sessionId>', methods=['POST'])
+def _chain(modal, sessionId):
+    return Response(chain(request.json['prompt'], modal, sessionId), mimetype='text/plain')     # OK
 
 @app.route('/model/<modalId>', methods=['GET'])
 def edit_modals(modalId):
@@ -172,8 +246,7 @@ def edit_modals(modalId):
     file_collection = db["file_collection"]
     object_id = ObjectId(modalId)
     document = file_collection.find_one({"_id": object_id})
-    # for document in cursor:
-    #     modalObj.append({"id": document.get('_id'), "key": "4", "label": document.get('modal'), "files": document.get('files')})
+
     return jsonify({"key": "4", "label": document.get('modal'), "files": document.get('files')})
 
 @app.route('/model/<modalId>', methods=['DELETE'])
@@ -221,9 +294,49 @@ def fetch_modals():
         modalObj.append({"id": str(document.get('_id')), "key": "4", "label": document.get('modal'), "files": document.get('files')})
     return jsonify(modalObj)
 
+@app.route('/initiate', methods=['GET'])
+def _initiate():
+    initialize_chroma_db('./data')
+    return "Done"
+
+@app.route('/chats', methods=['GET'])
+def _fetchChatList():
+    chat_lists = []
+    seen_session_ids = set()
+    db = client['chat_db']
+    chat_histories = db['chat_histories']
+    
+    for chat_history in chat_histories.find():
+        session_id = chat_history['SessionId']
+        if session_id not in seen_session_ids:
+            title = json.loads(chat_history["History"])["data"]["content"]
+            chat_lists.append({"title": title, "sessionId": session_id})
+            seen_session_ids.add(session_id)
+    
+    return chat_lists
+
+@app.route('/history/<sessionId>', methods=['GET'])
+def _fetchHistory(sessionId):
+    history = []
+    chat_message_history = _get_chat_history(sessionId).messages
+    for idx, msg in enumerate(chat_message_history):
+        if idx % 2 == 0:
+            history.append({"text": [msg.content], "type": "user"})
+        else:
+            history.append({"text": [msg.content], "type": "bot"})
+    return history
+
 @app.route('/test', methods=['GET'])
 def _test():
-    return "HI"
+    chatLists = []
+    db = client['chat_db']
+    chat_histories = db["chat_histories"]
+    for chat_history in chat_histories.find():
+        if chat_history['SessionId'] not in chatLists:
+            chatLists.append(chat_history['SessionId'])
+
+    print(chatLists)
+    return "good"
 
 
 @app.route('/upload/<modalName>', methods=['POST'])

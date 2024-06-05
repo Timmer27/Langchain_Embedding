@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import {
   Menu,
   MenuButton,
@@ -6,19 +6,14 @@ import {
   MenuItems,
   Transition,
 } from "@headlessui/react";
-import {
-  BoltIcon,
-  ChevronDownIcon,
-  PencilSquareIcon,
-  bolt,
-} from "@heroicons/react/20/solid";
+import { ChevronDownIcon, PencilSquareIcon } from "@heroicons/react/20/solid";
 import chatBot from "./assets/chatbot.png";
 import "./App.css";
 import axios from "axios";
-import { Button, Modal } from "antd";
-import EditModal from "./components/EditModal";
+import { Button } from "antd";
 import { DashboardOutlined } from "@ant-design/icons";
-
+import { Link, useParams } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
 import ModalLayout from "./components/ModalLayout";
 
 function classNames(...classes) {
@@ -34,10 +29,10 @@ const INIITIAL_MODELS = [
     key: "2",
     label: "GPT4 ALL",
   },
-  {
-    key: "3",
-    label: "Ollama",
-  },
+  // {
+  //   key: "3",
+  //   label: "Ollama",
+  // },
 ];
 
 const MyComponent = () => {
@@ -47,13 +42,15 @@ const MyComponent = () => {
   const [prompt, setPrompt] = useState();
   const [selectedModel, setSelectedModel] = useState();
   const [output, setOutput] = useState([]);
-  const [modelId, setModelId] = useState();
+  const [chatList, setChatList] = useState([]);
+  const [sessionId, setSessionId] = useState();
   const [open, setOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const aborterRef = useRef(new AbortController());
+  const { id } = useParams();
+  const uniqueId = uuidv4();
 
-  const run = async () => {
+  const submitPromptHandler = async (sessionId) => {
     if (!prompt) {
       // 입력값 없을 시 아무것도 안함
       return false;
@@ -69,12 +66,15 @@ const MyComponent = () => {
     setIsLoading(true);
     aborterRef.current = new AbortController();
     try {
-      const response = await fetch(`${URL}/chain/${selectedModel.key}`, {
-        signal: aborterRef.current.signal,
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
+      const response = await fetch(
+        `${URL}/generate/${selectedModel.key}/id/${sessionId}`,
+        {
+          signal: aborterRef.current.signal,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        }
+      );
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -109,8 +109,15 @@ const MyComponent = () => {
       }
     }
   };
-  const handleSubmit = () => {
-    run();
+
+  const fetchChatLists = async () => {
+    const response = await axios.get(`${URL}/chats`);
+    setChatList(response.data);
+  };
+
+  const fetchChatHistory = async (sessionId) => {
+    const response = await axios.get(`${URL}/history/${sessionId}`);
+    setOutput(response.data);
   };
 
   const fetchModals = async () => {
@@ -129,13 +136,8 @@ const MyComponent = () => {
   const deleteModalHandler = async (modelId) => {
     setSelectedModel(models[0]);
     const response = await axios.delete(`${URL}/model/${modelId}`);
-    console.log(response);
     await fetchModals();
   };
-
-  useEffect(() => {
-    fetchModals();
-  }, []);
 
   useEffect(() => {
     if (bottomRef.current) {
@@ -143,26 +145,61 @@ const MyComponent = () => {
     }
   }, [output]);
 
+  useEffect(() => {
+    if (!id) {
+      setSessionId(uniqueId);
+    } else {
+      setSessionId(id);
+      fetchChatHistory(id);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchModals();
+    fetchChatLists();
+  }, []);
+
   return (
-    selectedModel && (
+    selectedModel &&
+    sessionId && (
       // layout
       <div className="flex h-screen bg-[#121212]">
         {/* sidebar */}
         <div className="flex flex-col bg-[#f9f9f9] w-64 p-4 space-y-4">
-          <button className="bg-[#616161] rounded-lg py-3 text-white">
-            New Chat
-          </button>
-          {/* <div className="text-black flex flex-col space-y-2">
-            <a className="" href="#">
-              Model files
-            </a>
-            <a className="" href="#">
-              Prompts
-            </a>
-            <a className="" href="#">
-              Documents
-            </a>
-          </div> */}
+          <div
+            className="flex items-center gap-3 py-3 pl-3 mb-8 rounded-[12px] cursor-pointer hover:bg-[#ebebeb]"
+            onClick={() => {
+              const newChatId = uuidv4();
+              console.log("newChatId", newChatId);
+              setOutput([]);
+              setSessionId(newChatId);
+            }}
+          >
+            <PencilSquareIcon className="rounded-lg w-6" />
+            <span>New Chat</span>
+          </div>
+          {/* chat histories */}
+          <div>
+            <div className="text-sm text-gray-500 font-[600] pl-3 mb-2">
+              Chat History
+            </div>
+            <div className="">
+              {chatList.map((val, idx) => {
+                return (
+                  <Link
+                    key={idx}
+                    to={`/${val.sessionId}`}
+                    className="flex items-center gap-3 py-3 pl-3 my-1 rounded-[12px] cursor-pointer hover:bg-[#ebebeb]"
+                    style={{
+                      background: val.sessionId === sessionId && "#ebebeb",
+                    }}
+                  >
+                    {val.title}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
         {/* sidebar */}
         {/* main container */}
@@ -190,9 +227,9 @@ const MyComponent = () => {
               >
                 <MenuItems className="max-h-[30rem] overflow-hidden overflow-y-auto absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                   <div className="py-1">
-                    {models.map((val) => {
+                    {models.map((val, idx) => {
                       return (
-                        <MenuItem>
+                        <MenuItem key={idx}>
                           {({ focus }) => (
                             <div
                               onClick={() => {
@@ -212,11 +249,7 @@ const MyComponent = () => {
 
                                 <Button
                                   onClick={(e) => {
-                                    // e.preventDefault();
                                     deleteModalHandler(val.id);
-                                    // setModelId(val.id);
-                                    // setEditOpen(true);
-                                    // alert("삭제 기능 준비 중");
                                   }}
                                 >
                                   삭제
@@ -246,14 +279,6 @@ const MyComponent = () => {
             models={models}
             fetchModals={fetchModals}
           />
-          {modelId && (
-            <EditModal
-              modelId={modelId}
-              open={editOpen}
-              setOpen={setEditOpen}
-            />
-          )}
-
           {/* propmt output section */}
           <section className="flex-1 overflow-hidden overflow-y-auto max-h-[83%]">
             <div className="mx-auto flex flex-col flex-1 gap-7 text-base juice:gap-4 juice:md:gap-6 md:max-w-3xl lg:max-w-[40rem] xl:max-w-[48rem] mt-5">
@@ -334,14 +359,14 @@ const MyComponent = () => {
                       onKeyDown={(e) => {
                         // if (e.key === "Enter" && !isLoading) {
                         if (e.key === "Enter") {
-                          handleSubmit();
+                          submitPromptHandler(sessionId);
                         }
                       }}
                     />
                   </div>
                 </div>
                 <svg
-                  onClick={() => !isLoading && handleSubmit()}
+                  onClick={() => !isLoading && submitPromptHandler(sessionId)}
                   className="cursor-pointer"
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"

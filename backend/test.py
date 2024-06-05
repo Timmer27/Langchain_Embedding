@@ -1,53 +1,25 @@
-from langchain_community.chat_models import ChatOllama
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain_core.callbacks.manager import CallbackManager
-from langchain.prompts import PromptTemplate
-from langchain.chains import RetrievalQA, ConversationalRetrievalChain, RetrievalQAWithSourcesChain
-from src.utils import initialize_chroma_db
-import configparser
-import os
+import requests
 
-config = configparser.ConfigParser()
-config.read('config.ini')
-os.environ['OPENAI_API_KEY'] = config['API']['OPENAI_API_KEY']
+# Define the API endpoint
+ollama_url = 'http://192.168.1.203:11434/api/generate'
 
-# 해당 모델은 한국어 안됨
-# model = "Meta-Llama-3-8B-Instruct:latest"
-# model = "Llama-3-Open-Ko-8B-Instruct:latest"
-model = "EEVE-Korean-10.8B:latest"
-template = """
-    {question}
-"""
+# Example payload (customize as per your requirements)
+payload = {
+    'model': 'platypus-kor:latest',
+    'prompt': 'who are you?',
+    'stream': True,
+}
 
-db = initialize_chroma_db('./data')
+try:
+    response = requests.post(ollama_url, json=payload)
+    print(';response',response)
+    response_data = response.text
 
-llm = ChatOllama(
-    model=model,
-    callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
-)
+    print(';response_data',response_data, type(response_data))
 
-# # 프롬프트 설정
-# prompt = ChatPromptTemplate.from_template("한국어 할줄 아니?")
+    # Extract the generated content
+    generated_text = response_data.get('message', {}).get('content', 'Error: No content received')
 
-# # LangChain 표현식 언어 체인 구문을 사용합니다.
-# chain = prompt | llm | StrOutputParser()
-# _res = chain.invoke({"question": "한국어 할줄 아니?"})
-
-chain = RetrievalQAWithSourcesChain.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=db.as_retriever(),
-    return_source_documents=True,
-    chain_type_kwargs={
-        "prompt": PromptTemplate(
-            template=template,
-            input_variables=["question"],
-        ),
-        "document_variable_name": "question"
-    },
-)
-
-_res = chain.invoke({"question": "엔비디아의 대표 상품에 대해 알려줘"})
-# _res = chain.invoke({"question": "한국어 할줄 아니?"})
+    print(f"Generated text: {generated_text}")
+except requests.RequestException as e:
+    print(f"Error: {e}")
