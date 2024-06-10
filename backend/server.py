@@ -145,12 +145,11 @@ def llm_gpt4(g, prompt, sessionId):
 
 def llm_Ollama(g, prompt, sessionId):
     try:
-        local_path = os.path.abspath('./models/KoR-Orca-Platypus-13b-v1.5')  # Use absolute path
         model = Ollama(
-            model=local_path,
+            model='platypus-kor',
             callbacks=[ChainStreamHandler(g)],
             verbose=True,
-        )
+        )    
         
         prompt_template = ChatPromptTemplate.from_messages(
             [

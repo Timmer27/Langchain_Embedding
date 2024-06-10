@@ -1,4 +1,4 @@
-FROM ggml-model-Q5_K_M.gguf
+FROM KoR-Orca-Platypus-13b-v1.5.gguf
 
 TEMPLATE """{{- if .System }}
 <s>{{ .System }}</s>
@@ -10,6 +10,5 @@ TEMPLATE """{{- if .System }}
 
 SYSTEM """A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions."""
 
-PARAMETER TEMPERATURE 0
 PARAMETER stop <s>
 PARAMETER stop </s>
