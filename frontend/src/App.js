@@ -29,10 +29,10 @@ const INIITIAL_MODELS = [
     key: "2",
     label: "GPT4 ALL",
   },
-  // {
-  //   key: "3",
-  //   label: "Ollama",
-  // },
+  {
+    key: "3",
+    label: "Ollama",
+  },
 ];
 
 const MyComponent = () => {
