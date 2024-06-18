@@ -1,5 +1,6 @@
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from langchain.embeddings import OllamaEmbeddings
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
@@ -23,8 +24,11 @@ def train_pdf_chroma_db(files_with_path: list) -> Chroma:
         chunk_overlap = 0
     )
     documents = text_splitter.split_documents(data)
+    
+    oembed = OllamaEmbeddings(base_url="http://localhost:11434", model="nomic-embed-text")
 
-    db = Chroma.from_documents(persist_directory="vector_store", documents=documents, embedding=OpenAIEmbeddings())
+    # db = Chroma.from_documents(persist_directory="vector_store", documents=documents, embedding=OpenAIEmbeddings())
+    db = Chroma.from_documents(persist_directory="vector_store", documents=documents, embedding=oembed)
     return db
 
 def delete_documents_from_chroma_db(db: Chroma, dataPath: str, fileName: str):

@@ -17,6 +17,11 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
+from guardrails.hub import RegexMatch, TwoWords
+from guardrails import Guard, OnFailAction
+from guardrails.errors import ValidationError
+from pydantic import BaseModel
+import litellm
 
 from bson import ObjectId
 import warnings
@@ -24,10 +29,10 @@ warnings.filterwarnings("ignore")
 
 load_dotenv('.env.development')
 app = Flask(__name__)
+
 MONGODB_URL = os.getenv("MONGODB_URL")
 client = MongoClient(MONGODB_URL)
 CORS(app)
-
 UPLOAD_FOLDER = 'data'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -97,7 +102,13 @@ def llm_OpenAI(g, prompt, sessionId):
             ]
         )
         llm_chain = (prompt_template | model | StrOutputParser())
-        
+        # response = completion(
+        #     model="ollama/llama2",
+        #     messages = [{ "content": "Hello, how are you?","role": "user"}],
+        #     api_base="http://localhost:11434",
+        #     stream=True,
+        # )
+
         # Create the RunnableWithMessageHistory instance
         chain_with_history = RunnableWithMessageHistory(
             llm_chain,
@@ -145,31 +156,63 @@ def llm_gpt4(g, prompt, sessionId):
 
 def llm_Ollama(g, prompt, sessionId):
     try:
-        model = Ollama(
-            model='platypus-kor',
-            callbacks=[ChainStreamHandler(g)],
-            verbose=True,
-        )    
+        # model = Ollama(
+        #     model='platypus-kor',
+        #     callbacks=[ChainStreamHandler(g)],
+        #     verbose=True,
+        # )    
         
-        prompt_template = ChatPromptTemplate.from_messages(
-            [
-                ("system", "You are a helpful assistant."),
-                MessagesPlaceholder(variable_name="history"),
-                ("human", "{question}"),
-            ]
+        # prompt_template = ChatPromptTemplate.from_messages(
+        #     [
+        #         ("system", "You are a helpful assistant."),
+        #         MessagesPlaceholder(variable_name="history"),
+        #         ("human", "{question}"),
+        #     ]
+        # )
+        # llm_chain = prompt_template | model
+
+        # Call the Guard to wrap the LLM API call
+        class Pet(BaseModel):
+            name: str
+            age: int
+
+
+        guard = Guard.from_pydantic(Pet)
+        guard.use(TwoWords, on=prompt)
+        # guard.with_prompt_validation([TwoWords(on_fail="exception")])
+
+        raw_llm_response, validated_response, *rest = guard(
+            litellm.completion,
+            model="ollama/llama2",
+            max_tokens=1000,
+            api_base="http://localhost:11434",
+            stream=True,
         )
-        llm_chain = prompt_template | model
+        # response = litellm.completion(
+        #     model="ollama/llama2", 
+        #     messages=[{ "content": "respond in 20 words. who are you?","role": "user"}], 
+        #     msg_history=[{"role": "user", "content": "hello"}],
+        #     api_base="http://localhost:11434",
+        #     stream=True
+        # )
+        print(raw_llm_response)
+        print(validated_response)
+        print(*rest)
+        # for chunk in response:
+        #     print(chunk['choices'][0]['delta'])        
+
+        # print('validated_response', validated_response)
         
         # Create the RunnableWithMessageHistory instance
-        chain_with_history = RunnableWithMessageHistory(
-            llm_chain,
-            _get_chat_history,
-            input_messages_key="question",
-            history_messages_key="history",
-        )
+        # chain_with_history = RunnableWithMessageHistory(
+        #     llm_chain,
+        #     _get_chat_history,
+        #     input_messages_key="question",
+        #     history_messages_key="history",
+        # )
 
-        config = {"configurable": {"session_id": sessionId}}    
-        _res = chain_with_history.invoke({"question": prompt}, config=config) 
+        # config = {"configurable": {"session_id": sessionId}}    
+        # _res = chain_with_history.invoke({"question": prompt}, config=config) 
     finally:
         g.close()        
 
