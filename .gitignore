@@ -168,3 +168,4 @@ llama-0.1.1-py2-none-any.whl
 /backend/data
 /langserve_ollama-main
 *.csv
+/backend/hg_download/ModelfileDir

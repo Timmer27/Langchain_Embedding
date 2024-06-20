@@ -87,6 +87,7 @@ for evaluate in data:
     test_result.append(result)
     break
 
+test_result
 # test_result
 
 # chain = RetrievalQAWithSourcesChain.from_chain_type(
