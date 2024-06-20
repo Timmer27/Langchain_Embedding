@@ -169,3 +169,4 @@ llama-0.1.1-py2-none-any.whl
 /langserve_ollama-main
 *.csv
 /backend/hg_download/ModelfileDir
+/backend/hg_download/llama_model_quantizer
