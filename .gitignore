@@ -167,6 +167,7 @@ llama-0.1.1-py2-none-any.whl
 /backend/vector_store
 /backend/data
 /langserve_ollama-main
-*.csv
+# *.csv
 /backend/hg_download/ModelfileDir
 /backend/hg_download/llama_model_quantizer
+backend/evaluate_test/HellaSwagData.csv

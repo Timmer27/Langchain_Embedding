@@ -1,4 +1,4 @@
-FROM KoR-Orca-Platypus-13B.gguf
+FROM MiniCPM-Llama3.gguf
 
 TEMPLATE """{ if .System }
 <|start_header_id|>{ .System }<|end_header_id|>

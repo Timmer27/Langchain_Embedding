@@ -92,5 +92,6 @@ if __name__ == '__main__':
     # print('model_id, model_name, outtype', model_id, model_name, outtype)
 
     # 모델파일 생성 및 pull
+    # 실행 명령어 예시 -> python download.py --modelId openbmb/MiniCPM-Llama3-V-2_5 --modelName MiniCPM-Llama3 --outtype q8_0
     download_hg_model(model_id=model_id, local_dir=file_name+"Dir")
     create_modelfile_and_pull_into_ollama(abs_path=abs_path, model_path=file_name, modelName=model_name, outtype=outtype)
