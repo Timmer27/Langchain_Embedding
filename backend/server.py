@@ -236,27 +236,32 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     )
 
     # Retrieval
+    # retriever = vectorstore.as_retriever(
+    #     search_type='mmr',
+    #     search_kwargs={'k': 5, 'lambda_mult': 0.15}
+    # )
     retriever = vectorstore.as_retriever(
         search_type='mmr',
         search_kwargs={'k': 5, 'lambda_mult': 0.15}
-    )
+    )    
 
     # docs = retriever.invoke(prompt)
-    docs = vectorstore.similarity_search(prompt, k=5)
+    # docs = vectorstore.similarity_search(prompt, k=5)
+    docs = retriever.invoke(prompt)
 
     # Prompt
     template = '''Answer the question based only on the below context.
-    You must answer it in detail with at least 5-6 sentences.
-    The answer must be referred to the below context.
-    If you do not know the answer or the context does not include the proper information about the context, say it does not have the information.
     IF the question is provided in Korean, the answer must be in Korean as well.
-    Then, provide the url given in the context as format like '\nURL: '
+    Then, provide the url given in the context as format like '\n자세한 내용은 해당 URL 에사 확인할 수 있습니다: '
 
     context: {context}
 
     Question: {question}
 
+    You must answer it in detail with at least 5-6 sentences.
+    The answer must be referred to the below context.
     '''
+    # If you do not know the answer or the context does not include the proper information about the context, say it does not have the information.
     # At the end of context, insert '\\n'
 
     template_prompt = ChatPromptTemplate.from_template(template)
@@ -267,6 +272,7 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
         streaming=True,
         callbacks=[ChainStreamHandler(g)],
         temperature=0.7,
+        # max_tokens=2048
     )
     # llm = Ollama(
     #     model='mistral',
@@ -274,10 +280,33 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     #     verbose=True,
     # )      
 
-
+    # Formatting documents
     def format_docs(docs):
         # return '\n\n'.join([d.page_content for d in docs])
-        return '\n\n'.join([d.page_content + f"\nURL: {d.metadata['url']}" for d in docs])
+        return '\n\n'.join([d.page_content + f"\nURL: {d.metadata['url']}" for d in docs])    
+    def format_docs(docs):
+        try:
+            formatted_docs = '\n\n'.join([
+                # f"Title: {d.metadata.get('title', 'No Title')}\n"
+                # f"Author: {d.metadata.get('author', 'No Author')}\n"
+                # f"Affiliation: {d.metadata.get('affiliation', 'No Affiliation')}\n"
+                # f"Journal: {d.metadata.get('journal', 'No Journal')}\n"
+                # f"Volume: {d.metadata.get('volume', 'No Volume')}\n"
+                f"Year: {d.metadata.get('year', 'No Year')}\n"
+                f"Pages: {d.metadata.get('page', 'No Pages')}\n"
+                # f"Keywords: {d.metadata.get('keywords', 'No Keywords')}\n"
+                # f"Abstract: {d.metadata.get('abstract', 'No Abstract')}\n"
+                # f"References: {d.metadata.get('references', 'No References')}\n"
+                # f"Category: {d.metadata.get('category', 'No Category')}\n"
+                # f"ID: {d.metadata.get('id', 'No ID')}\n"
+                f"URL: {d.metadata.get('url', 'No URL')}\n"
+                f"Content: {d.page_content}"
+                for d in docs
+            ])
+            return formatted_docs
+        except Exception as e:
+            print('e', e)
+            return ""    
 
     # Chain
     chain = template_prompt | llm
@@ -288,9 +317,9 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     _res = chain.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
     print('_res', _res)
     print('====================================================================================================')
-    # print('prompt', prompt)
-    # print('====================================================================================================')
-    # print('format_docs(docs)', format_docs(docs))
+    print('prompt', prompt)
+    print('====================================================================================================')
+    print('format_docs(docs)', format_docs(docs))
     g.close()   
     # # 로드된 DB를 이용하여 Retriever 초기화
     # model = ChatOpenAI(
