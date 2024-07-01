@@ -17,13 +17,14 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
-from guardrails.hub import RegexMatch, TwoWords
-from guardrails import Guard, OnFailAction
-from guardrails.errors import ValidationError
 from langchain_postgres.vectorstores import PGVector
 from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel
-import litellm
+
+# from guardrails.hub import RegexMatch, TwoWords
+# from guardrails import Guard, OnFailAction
+# from guardrails.errors import ValidationError
+# import litellm
 
 from bson import ObjectId
 import warnings
@@ -158,38 +159,38 @@ def llm_gpt4(g, prompt, sessionId):
 
 def llm_Ollama(g, prompt, sessionId):
     try:
-        # model = Ollama(
-        #     model='platypus-kor',
-        #     callbacks=[ChainStreamHandler(g)],
-        #     verbose=True,
-        # )    
+        model = Ollama(
+            model='platypus-kor',
+            callbacks=[ChainStreamHandler(g)],
+            verbose=True,
+        )    
         
-        # prompt_template = ChatPromptTemplate.from_messages(
-        #     [
-        #         ("system", "You are a helpful assistant."),
-        #         MessagesPlaceholder(variable_name="history"),
-        #         ("human", "{question}"),
-        #     ]
-        # )
-        # llm_chain = prompt_template | model
+        prompt_template = ChatPromptTemplate.from_messages(
+            [
+                ("system", "You are a helpful assistant."),
+                MessagesPlaceholder(variable_name="history"),
+                ("human", "{question}"),
+            ]
+        )
+        llm_chain = prompt_template | model
 
         # Call the Guard to wrap the LLM API call
-        class Pet(BaseModel):
-            name: str
-            age: int
+        # class Pet(BaseModel):
+        #     name: str
+        #     age: int
 
 
-        guard = Guard.from_pydantic(Pet)
-        guard.use(TwoWords, on=prompt)
-        # guard.with_prompt_validation([TwoWords(on_fail="exception")])
+        # guard = Guard.from_pydantic(Pet)
+        # guard.use(TwoWords, on=prompt)
+        # # guard.with_prompt_validation([TwoWords(on_fail="exception")])
 
-        raw_llm_response, validated_response, *rest = guard(
-            litellm.completion,
-            model="ollama/llama2",
-            max_tokens=1000,
-            api_base="http://localhost:11434",
-            stream=True,
-        )
+        # raw_llm_response, validated_response, *rest = guard(
+        #     litellm.completion,
+        #     model="ollama/llama2",
+        #     max_tokens=1000,
+        #     api_base="http://localhost:11434",
+        #     stream=True,
+        # )
         # response = litellm.completion(
         #     model="ollama/llama2", 
         #     messages=[{ "content": "respond in 20 words. who are you?","role": "user"}], 
@@ -197,9 +198,9 @@ def llm_Ollama(g, prompt, sessionId):
         #     api_base="http://localhost:11434",
         #     stream=True
         # )
-        print(raw_llm_response)
-        print(validated_response)
-        print(*rest)
+        # print(raw_llm_response)
+        # print(validated_response)
+        # print(*rest)
         # for chunk in response:
         #     print(chunk['choices'][0]['delta'])        
 
@@ -213,8 +214,8 @@ def llm_Ollama(g, prompt, sessionId):
         #     history_messages_key="history",
         # )
 
-        # config = {"configurable": {"session_id": sessionId}}    
-        # _res = chain_with_history.invoke({"question": prompt}, config=config) 
+        config = {"configurable": {"session_id": sessionId}}    
+        _res = llm_chain.invoke({"question": prompt}, config=config) 
     finally:
         g.close()        
 
