@@ -292,7 +292,7 @@ const MyComponent = () => {
                           {/* 봇 이미지 */}
                           <img src={chatBot} width={33} />
                         </div>
-                        <div className="w-full">
+                        {/* <div className="w-full">
                           {val.text.map((words, i) => (
                             <p
                               key={i}
@@ -300,6 +300,18 @@ const MyComponent = () => {
                             >
                               {words}
                             </p>
+                          ))}
+                        </div> */}
+                        <div className="w-full">
+                          {val.text.map((words, i) => (
+                            <div
+                              key={i}
+                              className="markdown prose w-full break-words dark:prose-invert light mt-3 mb-3"
+                            >
+                              {words.split("\n").map((line, index) => (
+                                <p key={index}>{line}</p>
+                              ))}
+                            </div>
                           ))}
                         </div>
                       </div>

@@ -248,30 +248,35 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     You must answer it in detail with at least 5-6 sentences.
     The answer must be referred to the below context.
     If you do not know the answer or the context does not include the proper information about the context, say it does not have the information.
-    At the end of context, provide a metadata url for its document as format like 'url: '
+    IF the question is provided in Korean, the answer must be in Korean as well.
+    Then, provide the url given in the context as format like '\nURL: '
+
     context: {context}
 
     Question: {question}
+
     '''
+    # At the end of context, insert '\\n'
 
     template_prompt = ChatPromptTemplate.from_template(template)
 
     # Model
-    # llm = ChatOpenAI(
-    #     verbose=True,
-    #     streaming=True,
-    #     callbacks=[ChainStreamHandler(g)],
-    #     temperature=0.7,
-    # )
-    llm = Ollama(
-        model='mistral',
-        callbacks=[ChainStreamHandler(g)],
+    llm = ChatOpenAI(
         verbose=True,
-    )      
+        streaming=True,
+        callbacks=[ChainStreamHandler(g)],
+        temperature=0.7,
+    )
+    # llm = Ollama(
+    #     model='mistral',
+    #     callbacks=[ChainStreamHandler(g)],
+    #     verbose=True,
+    # )      
 
 
     def format_docs(docs):
-        return '\n\n'.join([d.page_content for d in docs])
+        # return '\n\n'.join([d.page_content for d in docs])
+        return '\n\n'.join([d.page_content + f"\nURL: {d.metadata['url']}" for d in docs])
 
     # Chain
     chain = template_prompt | llm
@@ -280,12 +285,11 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     config = {"configurable": {"session_id": sessionId}}
     # _res = retriever.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
     _res = chain.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
-    # print('_res', _res)
-    # print('=========================')
+    print('_res', _res)
     print('====================================================================================================')
-    print('prompt', prompt)
-    print('====================================================================================================')
-    print('format_docs(docs)', format_docs(docs))
+    # print('prompt', prompt)
+    # print('====================================================================================================')
+    # print('format_docs(docs)', format_docs(docs))
     g.close()   
     # # 로드된 DB를 이용하여 Retriever 초기화
     # model = ChatOpenAI(
