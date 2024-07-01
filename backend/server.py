@@ -314,13 +314,19 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     # Run
     config = {"configurable": {"session_id": sessionId}}
     # _res = retriever.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
-    _res = chain.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
+    chain_with_history = RunnableWithMessageHistory(
+        chain,
+        _get_chat_history,
+        input_messages_key="question",
+        history_messages_key="history",
+    )    
+    _res = chain_with_history.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
     print('_res', _res)
     print('====================================================================================================')
     print('prompt', prompt)
     print('====================================================================================================')
     print('format_docs(docs)', format_docs(docs))
-    g.close()   
+    g.close()
     # # 로드된 DB를 이용하여 Retriever 초기화
     # model = ChatOpenAI(
     #         verbose=True,
