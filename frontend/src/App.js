@@ -22,17 +22,21 @@ function classNames(...classes) {
 
 const INIITIAL_MODELS = [
   {
+    key: "4",
+    label: "Paper",
+  },
+  {
     key: "1",
     label: "Open AI",
   },
-  {
-    key: "2",
-    label: "GPT4 ALL",
-  },
-  {
-    key: "3",
-    label: "Ollama",
-  },
+  // {
+  //   key: "2",
+  //   label: "GPT4 ALL",
+  // },
+  // {
+  //   key: "3",
+  //   label: "Ollama",
+  // },
 ];
 
 const MyComponent = () => {
@@ -243,10 +247,7 @@ const MyComponent = () => {
                               )}
                             >
                               <div>{val.label}</div>
-                              {val.key === "4" && (
-                                // <div className="flex justify-between">
-                                // <div>{val.label}</div>
-
+                              {/* {val.key === "4" && (
                                 <Button
                                   onClick={(e) => {
                                     deleteModalHandler(val.id);
@@ -254,8 +255,7 @@ const MyComponent = () => {
                                 >
                                   삭제
                                 </Button>
-                                // </div>
-                              )}
+                              )} */}
                             </div>
                           )}
                         </MenuItem>
@@ -265,13 +265,12 @@ const MyComponent = () => {
                 </MenuItems>
               </Transition>
             </Menu>
-            <button
+            {/* <button
               className="p-[0px_7px] border border-gray-300 rounded-md ml-2 hover:bg-[#8080800a]"
               onClick={() => setOpen(true)}
             >
-              {/* <PlusIcon /> */}
               <DashboardOutlined />
-            </button>
+            </button> */}
           </section>
           <ModalLayout
             open={open}
@@ -308,7 +307,7 @@ const MyComponent = () => {
                   } else {
                     // 유저일경우
                     return (
-                      <div key={index} className="w-full text-end">
+                      <div key={index} className="w-full text-left">
                         {val.text.map((words, i) => (
                           <p
                             key={i}

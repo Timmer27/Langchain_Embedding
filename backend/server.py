@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 from langchain.chains import RetrievalQA, create_retrieval_chain, create_history_aware_retriever, RetrievalQAWithSourcesChain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from src.utils import initialize_chroma_db
+from src.utils import initialize_chroma_db, load_persisted_chroma_db
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -20,6 +20,8 @@ from langchain_mongodb.chat_message_histories import MongoDBChatMessageHistory
 from guardrails.hub import RegexMatch, TwoWords
 from guardrails import Guard, OnFailAction
 from guardrails.errors import ValidationError
+from langchain_postgres.vectorstores import PGVector
+from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel
 import litellm
 
@@ -219,21 +221,102 @@ def llm_Ollama(g, prompt, sessionId):
 def llm_openAI_with_chroma(g, prompt, sessionId):
     # 학습된 pdf 파일명, 경로에 따라 학습할지 말지를 결정
     # 학습이 안된 파일이 있다면, 잠시 시간이 걸리면서 vector로 변환
-    db = initialize_chroma_db('./data')
-    # 로드된 DB를 이용하여 Retriever 초기화
-    model = ChatOpenAI(
-            verbose=True,
-            streaming=True,
-            callbacks=[ChainStreamHandler(g)],
-            temperature=0.7,
-        )
-    prompt_template = ChatPromptTemplate.from_messages(
-        [
-            ("system", "You are a helpful assistant."),
-            MessagesPlaceholder(variable_name="history"),
-            ("human", "{question}"),
-        ]
+    # db = initialize_chroma_db('./data')
+    # vectorstore = load_persisted_chroma_db()
+    connection = 'postgresql+psycopg2://postgres:1234@192.168.1.203:5432/papers'
+    collection_name = "papers"
+    embeddings = OpenAIEmbeddings()
+
+    vectorstore = PGVector(
+        embeddings=embeddings,
+        collection_name=collection_name,
+        connection=connection,
+        use_jsonb=True,
     )
+
+    # Retrieval
+    retriever = vectorstore.as_retriever(
+        search_type='mmr',
+        search_kwargs={'k': 5, 'lambda_mult': 0.15}
+    )
+
+    # docs = retriever.invoke(prompt)
+    docs = vectorstore.similarity_search(prompt, k=5)
+
+    # Prompt
+    template = '''Answer the question based only on the below context.
+    You must answer it in detail with at least 5-6 sentences.
+    The answer must be referred to the below context.
+    If you do not know the answer or the context does not include the proper information about the context, say it does not have the information.
+    At the end of context, provide a metadata url for its document as format like 'url: '
+    context: {context}
+
+    Question: {question}
+    '''
+
+    template_prompt = ChatPromptTemplate.from_template(template)
+
+    # Model
+    # llm = ChatOpenAI(
+    #     verbose=True,
+    #     streaming=True,
+    #     callbacks=[ChainStreamHandler(g)],
+    #     temperature=0.7,
+    # )
+    llm = Ollama(
+        model='mistral',
+        callbacks=[ChainStreamHandler(g)],
+        verbose=True,
+    )      
+
+
+    def format_docs(docs):
+        return '\n\n'.join([d.page_content for d in docs])
+
+    # Chain
+    chain = template_prompt | llm
+
+    # Run
+    config = {"configurable": {"session_id": sessionId}}
+    # _res = retriever.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
+    _res = chain.invoke({'context': (format_docs(docs)), 'question': prompt}, config=config)
+    # print('_res', _res)
+    # print('=========================')
+    print('====================================================================================================')
+    print('prompt', prompt)
+    print('====================================================================================================')
+    print('format_docs(docs)', format_docs(docs))
+    g.close()   
+    # # 로드된 DB를 이용하여 Retriever 초기화
+    # model = ChatOpenAI(
+    #         verbose=True,
+    #         streaming=True,
+    #         callbacks=[ChainStreamHandler(g)],
+    #         temperature=0.7,
+    #     )
+    # prompt_template = ChatPromptTemplate.from_messages(
+    #     [
+    #         ("system", "You are a helpful assistant."),
+    #         MessagesPlaceholder(variable_name="history"),
+    #         ("human", "{question}"),
+    #     ]
+    # )
+
+    # system_prompt = (
+    #     # "Use the given context to answer the question. "
+    #     "If you don't know the answer, say you don't know. "
+    #     "Use three sentence maximum and keep the answer concise. "
+    #     "Context: {context}"
+    # )
+    # prompt = ChatPromptTemplate.from_messages(
+    #     [
+    #         ("system", system_prompt),
+    #         ("human", "{input}"),
+    #     ]
+    # )
+    # question_answer_chain = create_stuff_documents_chain(llm, prompt)
+    # chain = create_retrieval_chain(db.as_retriever(), question_answer_chain)
+    
     # retriever_chain = create_history_aware_retriever(model, db.as_retriever(), prompt_template)
     # rag_chain = create_retrieval_chain(db.as_retriever(), create_stuff_documents_chain(model, prompt_template))
     # chain = RetrievalQA.from_chain_type(
@@ -242,12 +325,12 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     #     retriever=db.as_retriever(),
     #     return_source_documents=True,
     # )
-    chain = RetrievalQAWithSourcesChain.from_chain_type(
-        llm=model,
-        chain_type="stuff",
-        retriever=db.as_retriever(),
-        # prompt=prompt_template
-    )
+    # chain = RetrievalQAWithSourcesChain.from_chain_type(
+    #     llm=model,
+    #     chain_type="stuff",
+    #     retriever=db.as_retriever(),
+    #     # prompt=prompt_template
+    # )
     # question_answer_chain = create_stuff_documents_chain(model, prompt_template)
     # chain = create_retrieval_chain(db.as_retriever(), question_answer_chain)
 
@@ -259,10 +342,12 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     #     history_messages_key="history",
     # )
 
-    config = {"configurable": {"session_id": sessionId}}    
-    _res = chain.invoke({"question": prompt}, config=config)     
+    # config = {"configurable": {"session_id": sessionId}}    
+    # # _res = chain.invoke({"query": prompt}, config=config)
+    # _res = chain.invoke({"question": prompt}, config=config)
+    # print('_res_res', _res)
     # _res = chain.invoke(prompt)
-    g.close()
+    
 
 def chain(prompt, modal, sessionId):
     g = ThreadedGenerator()
@@ -280,6 +365,14 @@ def chain(prompt, modal, sessionId):
 @app.route('/generate/<modal>/id/<sessionId>', methods=['POST'])
 def _chain(modal, sessionId):
     return Response(chain(request.json['prompt'], modal, sessionId), mimetype='text/plain')     # OK
+
+@app.route('/testtest', methods=['GET'])
+def TEST():
+    retriever = load_persisted_chroma_db().as_retriever(k=4)
+    docs = retriever.invoke("what is FMLs")
+    print(docs)
+    return jsonify({"TEST": docs})  
+
 
 @app.route('/model/<modalId>', methods=['GET'])
 def edit_modals(modalId):
