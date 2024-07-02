@@ -201,28 +201,28 @@ const MyComponent = () => {
             <div className="">
               {chatList.map((val, idx) => {
                 return (
-                  <Link
+                  <div
                     key={idx}
-                    className="group flex justify-between rounded-[12px] px-1 cursor-pointer hover:bg-[#ebebeb]"
+                    className="group flex justify-between rounded-[12px] cursor-pointer hover:bg-[#ebebeb]"
                     style={{
                       background: val.sessionId === sessionId && "#ebebeb",
                     }}
-                    to={`/${val.sessionId}`}
                   >
-                    <div className="flex items-center gap-3 py-3 pl-3 my-1 ">
-                      {/* <span></span> */}
+                    <Link
+                      to={`/${val.sessionId}`}
+                      className="flex items-center gap-3 py-3 pl-3 my-1 rounded-[12px] px-1 w-full"
+                    >
                       <EllipsisText
                         className="pr-2"
                         text={val.title}
                         length={"50"}
                       />
-                    </div>
+                    </Link>
                     <TrashIcon
                       color="#4b4b4b2e"
                       width={25}
                       className="min-w-6 hidden group-hover:block hover:text-[black]"
                       onClick={async (e) => {
-                        e.stopPropagation();
                         if (sessionId === val.sessionId) {
                           setSessionId(uniqueId);
                           setOutput([]);
@@ -230,7 +230,7 @@ const MyComponent = () => {
                         await deleteChatSessionHandler(val.sessionId);
                       }}
                     />
-                  </Link>
+                  </div>
                 );
               })}
             </div>
