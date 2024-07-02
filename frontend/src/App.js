@@ -6,14 +6,17 @@ import {
   MenuItems,
   Transition,
 } from "@headlessui/react";
-import { ChevronDownIcon, PencilSquareIcon } from "@heroicons/react/20/solid";
+import {
+  ChevronDownIcon,
+  PencilSquareIcon,
+  TrashIcon,
+} from "@heroicons/react/20/solid";
 import chatBot from "./assets/chatbot.png";
 import "./App.css";
 import axios from "axios";
-import { Button } from "antd";
-import { DashboardOutlined } from "@ant-design/icons";
 import { Link, useParams } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
+import EllipsisText from "react-ellipsis-text";
 import ModalLayout from "./components/ModalLayout";
 
 function classNames(...classes) {
@@ -111,6 +114,8 @@ const MyComponent = () => {
       if (err.name !== "AbortError") {
         console.error(err);
       }
+    } finally {
+      fetchChatLists();
     }
   };
 
@@ -141,6 +146,13 @@ const MyComponent = () => {
     setSelectedModel(models[0]);
     const response = await axios.delete(`${URL}/model/${modelId}`);
     await fetchModals();
+  };
+
+  const deleteChatSessionHandler = async (sessionId) => {
+    setSelectedModel(models[0]);
+    const response = await axios.delete(`${URL}/chat/${sessionId}`);
+    console.log("response", response);
+    await fetchChatLists();
   };
 
   useEffect(() => {
@@ -174,7 +186,6 @@ const MyComponent = () => {
             className="flex items-center gap-3 py-3 pl-3 mb-8 rounded-[12px] cursor-pointer hover:bg-[#ebebeb]"
             onClick={() => {
               const newChatId = uuidv4();
-              console.log("newChatId", newChatId);
               setOutput([]);
               setSessionId(newChatId);
             }}
@@ -183,7 +194,7 @@ const MyComponent = () => {
             <span>New Chat</span>
           </div>
           {/* chat histories */}
-          <div>
+          <div className="overflow-auto">
             <div className="text-sm text-gray-500 font-[600] pl-3 mb-2">
               Chat History
             </div>
@@ -192,13 +203,33 @@ const MyComponent = () => {
                 return (
                   <Link
                     key={idx}
-                    to={`/${val.sessionId}`}
-                    className="flex items-center gap-3 py-3 pl-3 my-1 rounded-[12px] cursor-pointer hover:bg-[#ebebeb]"
+                    className="group flex justify-between rounded-[12px] px-1 cursor-pointer hover:bg-[#ebebeb]"
                     style={{
                       background: val.sessionId === sessionId && "#ebebeb",
                     }}
+                    to={`/${val.sessionId}`}
                   >
-                    {val.title}
+                    <div className="flex items-center gap-3 py-3 pl-3 my-1 ">
+                      {/* <span></span> */}
+                      <EllipsisText
+                        className="pr-2"
+                        text={val.title}
+                        length={"50"}
+                      />
+                    </div>
+                    <TrashIcon
+                      color="#4b4b4b2e"
+                      width={25}
+                      className="min-w-6 hidden group-hover:block hover:text-[black]"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (sessionId === val.sessionId) {
+                          setSessionId(uniqueId);
+                          setOutput([]);
+                        }
+                        await deleteChatSessionHandler(val.sessionId);
+                      }}
+                    />
                   </Link>
                 );
               })}
@@ -323,7 +354,7 @@ const MyComponent = () => {
                         {val.text.map((words, i) => (
                           <p
                             key={i}
-                            className="text-end w-auto float-right rounded-[10px] py-2.5 px-4 bg-[rgba(128,128,128,0.18)] markdown prose break-words dark:prose-invert light"
+                            className="text-left w-auto float-right rounded-[10px] py-2.5 px-4 bg-[#bdbdbd2e] markdown prose break-words dark:prose-invert light"
                           >
                             {words}
                           </p>

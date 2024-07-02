@@ -327,67 +327,6 @@ def llm_openAI_with_chroma(g, prompt, sessionId):
     print('====================================================================================================')
     print('format_docs(docs)', format_docs(docs))
     g.close()
-    # # 로드된 DB를 이용하여 Retriever 초기화
-    # model = ChatOpenAI(
-    #         verbose=True,
-    #         streaming=True,
-    #         callbacks=[ChainStreamHandler(g)],
-    #         temperature=0.7,
-    #     )
-    # prompt_template = ChatPromptTemplate.from_messages(
-    #     [
-    #         ("system", "You are a helpful assistant."),
-    #         MessagesPlaceholder(variable_name="history"),
-    #         ("human", "{question}"),
-    #     ]
-    # )
-
-    # system_prompt = (
-    #     # "Use the given context to answer the question. "
-    #     "If you don't know the answer, say you don't know. "
-    #     "Use three sentence maximum and keep the answer concise. "
-    #     "Context: {context}"
-    # )
-    # prompt = ChatPromptTemplate.from_messages(
-    #     [
-    #         ("system", system_prompt),
-    #         ("human", "{input}"),
-    #     ]
-    # )
-    # question_answer_chain = create_stuff_documents_chain(llm, prompt)
-    # chain = create_retrieval_chain(db.as_retriever(), question_answer_chain)
-    
-    # retriever_chain = create_history_aware_retriever(model, db.as_retriever(), prompt_template)
-    # rag_chain = create_retrieval_chain(db.as_retriever(), create_stuff_documents_chain(model, prompt_template))
-    # chain = RetrievalQA.from_chain_type(
-    #     llm=model,
-    #     chain_type="stuff",
-    #     retriever=db.as_retriever(),
-    #     return_source_documents=True,
-    # )
-    # chain = RetrievalQAWithSourcesChain.from_chain_type(
-    #     llm=model,
-    #     chain_type="stuff",
-    #     retriever=db.as_retriever(),
-    #     # prompt=prompt_template
-    # )
-    # question_answer_chain = create_stuff_documents_chain(model, prompt_template)
-    # chain = create_retrieval_chain(db.as_retriever(), question_answer_chain)
-
-    # # Create the RunnableWithMessageHistory instance
-    # chain_with_history = RunnableWithMessageHistory(
-    #     chain,
-    #     _get_chat_history,
-    #     input_messages_key="question",
-    #     history_messages_key="history",
-    # )
-
-    # config = {"configurable": {"session_id": sessionId}}    
-    # # _res = chain.invoke({"query": prompt}, config=config)
-    # _res = chain.invoke({"question": prompt}, config=config)
-    # print('_res_res', _res)
-    # _res = chain.invoke(prompt)
-    
 
 def chain(prompt, modal, sessionId):
     g = ThreadedGenerator()
@@ -406,14 +345,6 @@ def chain(prompt, modal, sessionId):
 def _chain(modal, sessionId):
     return Response(chain(request.json['prompt'], modal, sessionId), mimetype='text/plain')     # OK
 
-@app.route('/testtest', methods=['GET'])
-def TEST():
-    retriever = load_persisted_chroma_db().as_retriever(k=4)
-    docs = retriever.invoke("what is FMLs")
-    print(docs)
-    return jsonify({"TEST": docs})  
-
-
 @app.route('/model/<modalId>', methods=['GET'])
 def edit_modals(modalId):
     db = client['vector_files']
@@ -422,6 +353,13 @@ def edit_modals(modalId):
     document = file_collection.find_one({"_id": object_id})
 
     return jsonify({"key": "4", "label": document.get('modal'), "files": document.get('files')})
+
+@app.route('/chat/<sessionId>', methods=['DELETE'])
+def delete_chat_session(sessionId):
+    db = client['chat_db']
+    chat_histories = db['chat_histories']
+    result = chat_histories.delete_many({'SessionId': sessionId})
+    return f'Deleted {result.deleted_count} documents with SessionId: {sessionId}'
 
 @app.route('/model/<modalId>', methods=['DELETE'])
 def delete_model(modalId):
